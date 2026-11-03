@@ -1,0 +1,389 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== الخصائص العامة ===== */
+:root {
+  --bg: #0d1421;
+  --bg-soft: #111a2b;
+  --panel: rgba(255, 255, 255, 0.05);
+  --panel-solid: #161f31;
+  --border: rgba(255, 255, 255, 0.1);
+  --gold: #ffd700;
+  --gold-soft: rgba(255, 215, 0, 0.12);
+  --text: #f4f6fb;
+  --muted: rgba(255, 255, 255, 0.65);
+  --accent: #00bcd4;
+  --danger: #ff6b6b;
+  --ayat-size: 30px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --bg: #f6f2e7;
+  --bg-soft: #fffdf7;
+  --panel: rgba(20, 35, 60, 0.04);
+  --panel-solid: #ffffff;
+  --border: rgba(20, 35, 60, 0.12);
+  --gold: #a9821a;
+  --gold-soft: rgba(169, 130, 26, 0.12);
+  --text: #1d2537;
+  --muted: rgba(29, 37, 55, 0.65);
+  --accent: #007c8f;
+  --danger: #c0392b;
+  --shadow: 0 10px 30px rgba(29, 37, 55, 0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* حواف الشاشات الحديثة (نحت فيديو للأندرويد الحديثة) */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+body {
+  @apply font-ui bg-[var(--bg)] text-[var(--text)] antialiased;
+  min-height: 100vh;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* خلفية زخرفية خفيفة */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  background:
+    radial-gradient(700px 400px at 85% -10%, rgba(255, 215, 0, 0.06), transparent),
+    radial-gradient(700px 400px at 10% 110%, rgba(0, 188, 212, 0.05), transparent);
+  pointer-events: none;
+}
+
+/* ===== مكونات مشتركة ===== */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-all duration-300 cursor-pointer select-none;
+    background: var(--gold-soft);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+  .btn:hover {
+    background: var(--gold);
+    color: var(--bg);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-all duration-300 cursor-pointer select-none;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    color: var(--text);
+    border-color: var(--gold);
+  }
+  .card {
+    @apply rounded-2xl p-5 transition-all duration-300;
+    background: var(--panel);
+    border: 1px solid var(--border);
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    border-color: var(--gold);
+    box-shadow: var(--shadow);
+  }
+  .input {
+    @apply w-full rounded-xl px-4 py-3 outline-none transition-all duration-300;
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+  }
+  .input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .section-title {
+    @apply font-headings text-2xl font-bold;
+    color: var(--gold);
+  }
+  .gold-text {
+    background: linear-gradient(45deg, var(--gold), var(--text), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* ===== شاشة البداية ===== */
+.splash-title {
+  @apply font-headings text-5xl md:text-7xl font-bold mb-4;
+  background: linear-gradient(45deg, #ffd700, #fffef5, #ffd700);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+  background-size: 200% auto;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.bismillah {
+  @apply font-quran text-xl md:text-3xl mb-8;
+  color: var(--gold);
+  opacity: 0.9;
+}
+
+/* ===== الترويسة ===== */
+.glass-header {
+  position: sticky;
+  top: 0;
+  z-index: 800;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ===== الآيات ===== */
+.ayah-text {
+  font-family: var(--font-quran);
+  font-size: var(--ayat-size);
+  line-height: 2.4;
+  word-spacing: 0.08em;
+}
+
+.ayah-token {
+  @apply rounded-lg px-1 cursor-pointer transition-all duration-300;
+}
+.ayah-token:hover,
+.ayah-token.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+.ayah-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.3rem;
+  height: 2.3rem;
+  margin: 0 0.3rem;
+  padding: 0 0.35rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  color: var(--gold);
+  background: var(--gold-soft);
+  font-family: var(--font-headings);
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+/* وسام آية زخرفي ﴿﴾ */
+.seal-brace {
+  color: var(--gold);
+  font-size: 0.95em;
+  opacity: 0.85;
+}
+
+.ayah-block.active {
+  background: var(--gold-soft);
+  color: var(--gold);
+  border-radius: 10px;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.15);
+}
+
+.active-ayah {
+  background: var(--gold-soft);
+}
+
+/* شعار تصنيف */
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: var(--gold-soft);
+  color: var(--gold);
+  border: 1px solid var(--gold);
+}
+
+/* البحث */
+mark.quran-hit {
+  background: var(--gold-soft);
+  color: var(--gold);
+  border-radius: 4px;
+  padding: 0 2px;
+  font-weight: bold;
+}
+
+/* ===== حركات ===== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-ring {
+  @apply w-16 h-16 rounded-full;
+  border: 4px solid var(--gold-soft);
+  border-top-color: var(--gold);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse-gold {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(255, 215, 0, 0);
+  }
+}
+.pulse-gold {
+  animation: pulse-gold 2s ease infinite;
+}
+
+/* ===== شريط الصوت ===== */
+.audio-bar {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 900;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border-top: 1px solid var(--gold);
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+
+.progress-bar {
+  @apply w-full h-1.5 rounded-full cursor-pointer relative;
+  background: var(--border);
+}
+.progress-fill {
+  @apply h-full rounded-full pointer-events-none;
+  background: linear-gradient(90deg, var(--gold), #ffed4e);
+  width: 0%;
+}
+.progress-knob {
+  @apply absolute top-1/2 h-3.5 w-3.5 rounded-full -translate-y-1/2;
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+/* مشغل زر التشغيل */
+.play-btn {
+  @apply flex items-center justify-center rounded-full cursor-pointer transition-transform duration-300;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, var(--gold), #ffed4e);
+  color: var(--bg);
+  font-size: 1.2rem;
+  border: none;
+  box-shadow: 0 5px 18px rgba(255, 215, 0, 0.35);
+}
+.play-btn:hover {
+  transform: scale(1.08);
+}
+
+/* ===== قائمة النوافذ المنبثقة ===== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.25s ease both;
+}
+
+.modal-box {
+  position: fixed;
+  z-index: 960;
+  background: var(--panel-solid);
+  border: 1px solid var(--gold);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow);
+  animation: fadeInUp 0.3s ease both;
+}
+
+/* قائمة سياق الآية */
+.ayah-menu {
+  position: fixed;
+  z-index: 940;
+  background: var(--panel-solid);
+  border: 1px solid var(--gold);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease both;
+  min-width: 210px;
+}
+.ayah-menu button {
+  @apply flex w-full items-center gap-3 px-4 py-2.5 text-sm text-right transition-colors;
+  color: var(--text);
+}
+.ayah-menu button:hover {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+/* نافذة التفسير */
+.tafsir-body {
+  font-family: var(--font-headings);
+  font-size: 1.15rem;
+  line-height: 2.1;
+  white-space: pre-wrap;
+}
+
+/* ===== التمرير ===== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--gold), rgba(255, 215, 0, 0.4));
+  border-radius: 6px;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--dark, #0d1421);
+}

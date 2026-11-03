@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Electron builder output
+release/
+dist/
+
+# Capacitor / Android build artifacts
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/local.properties
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.log
+
+# Vercel
+.vercel
+
+# Downloads published for web (published via scripts/copy-downloads.cjs)
+out/downloads/

@@ -1,0 +1,61 @@
+{
+  "name": "quran-alshamela",
+  "version": "2.2.0",
+  "private": true,
+  "description": "القرآن الكريم - مصحف الشاملة الإلكتروني (Next.js - إلكترون + أندرويد)",
+  "author": "Omar",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron:dev": "next build && electron .",
+    "electron:build": "next build && electron-builder --win",
+    "cap:sync": "next build && npx cap sync android",
+    "cap:apk": "next build && npx cap sync android && cd android && .\\gradlew assembleDebug",
+    "web:downloads": "next build && node scripts/copy-downloads.cjs"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "electron": "31.7.7",
+    "electron-builder": "24.13.3",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.3"
+  },
+  "build": {
+    "appId": "com.omar.quran",
+    "productName": "Quran-AlShamela",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "unicode": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "مصحف الشاملة"
+    },
+    "compression": "maximum"
+  }
+}
