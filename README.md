@@ -80,3 +80,17 @@ npm run cap:apk
 
 كان التطبيق يعمل عبر نقاط API سيرفر (`/api/...`) واستُبدلت في النسخة الحالية
 بطبقة عميل مباشرة (`src/lib/api.ts`) لتناسب التطبيقات السطحية والجوال بدون سيرفر.
+
+## النشر على GitHub و Vercel
+
+- **الكود:** https://github.com/sovereignempirex-ux/quran-alshamela
+- **نسخة الويب (إنتاج):** https://quran-alshamela.vercel.app
+- ملفات EXE/APK تُرفع كـ **GitHub Releases** (أحجام EXE تتجاوز حد 100MB في git العادي):
+
+```powershell
+powershell -File scripts/gh-release.ps1          # إنشاء إصدار v<version>
+powershell -File scripts/gh-upload-release.ps1   # رفع EXE/APK من release/ إلى الإصدار
+```
+
+- قسم «تنزيل التطبيق» في الويب يحضر أحجام المرفقات عبر GitHub API تلقائياً، ويُخفى داخل EXE/APK.
+- رفع Vercel: `npx vercel deploy --prod --yes` (الإعداد في vercel.json: framework=nextjs).
