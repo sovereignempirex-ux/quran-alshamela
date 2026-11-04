@@ -1,0 +1,11 @@
+# ملاحظة: بناء Vercel يحدث على الخادم — نستثني مخرجات البناء والحزم الضخمة
+out/
+.next/
+release/
+dist/
+node_modules/
+android/app/build/
+android/app/src/main/assets/
+android/capacitor-cordova-android-plugins/build/
+vercel-token
+.vercel
