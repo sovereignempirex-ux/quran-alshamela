@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { downloadEntries, downloadUrl, type DownloadEntry } from "@/lib/downloads";
+import { downloadEntries, downloadUrl, releasesApiUrl, type DownloadEntry } from "@/lib/downloads";
 import { toEasternNumbers } from "@/lib/utils";
 
 // كشف بيئة التشغيل: إلكترون يفتح التطبيق بـ ?env=desktop، والكاباسيتور عبر window.Capacitor
@@ -32,17 +32,39 @@ export default function DownloadsSection() {
     let alive = true;
     (async () => {
       const next: Record<string, FileStatus> = {};
-      await Promise.all(
-        entries.map(async (e) => {
-          try {
-            const res = await fetch(downloadUrl(e.file), { method: "HEAD" });
-            const len = Number(res.headers?.get("content-length") || 0);
-            next[e.file] = { ok: res.ok, sizeMB: len };
-          } catch {
-            next[e.file] = { ok: false };
+      if (downloadUrl(entries[0].file).startsWith("http")) {
+        // روابط GitHub Releases: نجلب الأحجام دفعة واحدة عبر API العام (يدعم CORS)
+        try {
+          const res = await fetch(releasesApiUrl(), {
+            headers: { Accept: "application/vnd.github+json" },
+          });
+          const data = await res.json();
+          const sizes: Record<string, number> = {};
+          for (const a of data.assets || []) sizes[a.name] = Number(a.size) || 0;
+          for (const e of entries) {
+            const urlName = e.file.replace(/\s+/g, ".");
+            const known = Object.prototype.hasOwnProperty.call(sizes, urlName);
+            // الملف مرفوع فعلاً = متاح بحجمه الحقيقي، وإلا نعتبره غير متاح
+            next[e.file] = known && res.ok ? { ok: true, sizeMB: sizes[urlName] } : { ok: false };
           }
-        })
-      );
+        } catch {
+          // API غير متاح — نظهر البطاقات بالأحجام التقريبية
+          for (const e of entries) next[e.file] = { ok: true, sizeMB: 0 };
+        }
+      } else {
+        // روابط محلية: فحص HEAD لكل ملف
+        await Promise.all(
+          entries.map(async (e) => {
+            try {
+              const res = await fetch(downloadUrl(e.file), { method: "HEAD" });
+              const len = Number(res.headers?.get("content-length") || 0);
+              next[e.file] = { ok: res.ok, sizeMB: len };
+            } catch {
+              next[e.file] = { ok: true, sizeMB: 0 };
+            }
+          })
+        );
+      }
       if (alive) {
         setStatus(next);
         setChecking(false);

@@ -1,11 +1,12 @@
 // ============================================================
 // قائمة ملفات التنزيل (EXE/APK) متاحة في نسخة الويب فقط.
-// الملفات تُنسخ عند النشر إلى مجلد downloads بجانب الموقع:
-//   npm run web:downloads
+// الملفات تُرفع إلى GitHub Releases (scripts/gh-upload-release.ps1)
+// وعند النشر المحلي يمكن عرضها من downloads ×: npm run web:downloads
 // ============================================================
 
 const APP_VERSION = "2.2.0";
-
+const GIT_USER = "sovereignempirex-ux";
+const GIT_REPO = "quran-alshamela";
 export interface DownloadEntry {
   file: string; // اسم الملف داخل out/downloads
   title: string;
@@ -68,6 +69,17 @@ export function downloadEntries(): DownloadEntry[] {
   ];
 }
 
+// عنوان GitHub Releases API لجلب أحجام الملفات (يدعم CORS من المتصفح)
+export function releasesApiUrl(): string {
+  return `https://api.github.com/repos/${GIT_USER}/${GIT_REPO}/releases/tags/v${APP_VERSION}`;
+}
+
+export function isExternalDownload(file: string): boolean {
+  return file.replace(/\s+/g, ".").length > 0 && downloadUrl(file).startsWith("http");
+}
+
 export function downloadUrl(file: string): string {
-  return `/downloads/${encodeURIComponent(file)}`;
+  // GitHub Release يستبدل المسافات بالنقاط في أسماء ملفات المرفقات
+  const urlName = file.replace(/\s+/g, ".");
+  return `https://github.com/${GIT_USER}/${GIT_REPO}/releases/download/v${APP_VERSION}/${urlName}`;
 }

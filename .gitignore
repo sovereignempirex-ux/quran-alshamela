@@ -27,3 +27,6 @@ Desktop.ini
 
 # Downloads published for web (published via scripts/copy-downloads.cjs)
 out/downloads/
+
+.vercel
+.env*
