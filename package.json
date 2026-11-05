@@ -1,6 +1,6 @@
 {
   "name": "quran-alshamela",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "القرآن الكريم - مصحف الشاملة الإلكتروني (Next.js - إلكترون + أندرويد)",
   "author": "Omar",
@@ -17,11 +17,15 @@
     "web:downloads": "next build && node scripts/copy-downloads.cjs"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/core": "^6.2.3",
+    "@capgo/capacitor-updater": "^6.53.0",
     "next": "14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.3",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

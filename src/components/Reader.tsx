@@ -11,6 +11,7 @@ import type {
   SurahMeta,
 } from "@/lib/types";
 import { toEasternNumbers, formatTime } from "@/lib/utils";
+import { fetchTranslation } from "@/lib/api";
 
 interface ReaderProps {
   surah: SurahMeta | null;
@@ -75,6 +76,32 @@ export default function Reader({
   const lastSavedRef = useRef<number>(0);
   // وضع الحفظ: نسبة افصاح كل آية (0 مخفي → 33% → 66% → مكشوفة كاملة)
   const [reveal, setReveal] = useState<Record<number, number>>({});
+
+  // == الترجمة الإنجليزية تحت الآية ==
+  const [translations, setTranslations] = useState<Record<number, string> | null>(null);
+  const [transLoading, setTransLoading] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!settings.showTranslation || !surah) {
+      setTranslations(null);
+      setTransLoading(false);
+      return;
+    }
+    setTransLoading(true);
+    fetchTranslation(surah.number)
+      .then((t) => {
+        if (alive) {
+          setTranslations(t);
+          setTransLoading(false);
+        }
+      })
+      .catch(() => {
+        if (alive) setTransLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [surah, settings.showTranslation]);
 
   // == تحديث 2.2: شريط تقدم القراءة + زر العودة للأعلى + تنقّل بلوحة المفاتيح ==
   const [progress, setProgress] = useState(0);
@@ -308,6 +335,18 @@ export default function Reader({
             {settings.memorize ? "🧠 حفظ: يعمل" : "🧠 وضع الحفظ"}
           </button>
 
+          {/* ترجمة إنجليزية تحت الآية */}
+          <button
+            className={`!py-1.5 text-xs ${settings.showTranslation ? "btn" : "btn-ghost"}`}
+            title="ترجمة إنجليزية تحت الآية"
+            onClick={() => {
+              onSettings((p) => ({ ...p, showTranslation: !p.showTranslation }));
+              onToast(!settings.showTranslation ? "🌐 الترجمة الإنجليزية مُفعَّلة" : "أُوقفت الترجمة الإنجليزية");
+            }}
+          >
+            {settings.showTranslation ? "🌐 الترجمة: مفعّلة" : "🌐 الترجمة الإنجليزية"}
+          </button>
+
           <button className="btn-ghost !py-1.5 text-xs" onClick={() => onToggleFavorite(surah)}>
             {isFav ? "❤️ في المفضلة" : "🤍 إضافة للمفضلة"}
           </button>
@@ -441,6 +480,19 @@ export default function Reader({
                         </span>
                         <span className="ayah-seal">{toEasternNumbers(n)}</span>
                       </p>
+                      {/* الترجمة الإنجليزية تحت الآية */}
+                      {settings.showTranslation &&
+                        (translations?.[n] ? (
+                          <p
+                            dir="ltr"
+                            lang="en"
+                            className="text-[13px] leading-6 text-[var(--muted)] mt-2 italic"
+                          >
+                            {translations[n]}
+                          </p>
+                        ) : transLoading ? (
+                          <p className="text-[11px] text-[var(--muted)] mt-2">🌐 جاري تحميل الترجمة...</p>
+                        ) : null)}
                       <div className="flex gap-2 mt-3 flex-wrap opacity-80">
                         <button
                           className="btn-ghost !px-3 !py-1 !text-xs"
@@ -477,6 +529,13 @@ export default function Reader({
           </>
         )}
       </div>
+
+      {/* تنبيه الترجمة في عرض المصحف المتصل */}
+      {continuous && !loading && ayahs.length > 0 && settings.showTranslation && (
+        <p className="text-center text-[11px] text-[var(--muted)] mt-4">
+          🌐 الترجمة الإنجليزية تظهر تحت كل آية في عرض «آية بسطر» — بدّل العرض من الأعلى لرؤيتها
+        </p>
+      )}
 
       {/* قائمة سياق الآية */}
       {menu && currentMenuAyah && (

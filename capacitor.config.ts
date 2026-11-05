@@ -12,6 +12,16 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     backgroundColor: '#0d1421',
   },
+  plugins: {
+    // التحديث الذاتي: يجلب auto_update.json الخادمي (إصدار + رابط web-app.zip)
+    // ويطبّق الحزمة الجديدة بصمت عند الإقلاع التالي — دون متجر Play
+    CapacitorUpdater: {
+      autoUpdateUrl: 'https://quran-alshamela.vercel.app/auto_update.json',
+      autoUpdate: true,
+      updateUrl: '',
+      statsUrl: '',
+    },
+  },
 };
 
 export default config;

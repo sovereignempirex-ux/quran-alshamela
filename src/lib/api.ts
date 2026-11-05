@@ -169,6 +169,33 @@ export async function fetchTafsir(
   };
 }
 
+// ==================== الترجمة الإنجليزية ====================
+
+const TRANS_CACHE_KEY = "quranTransCache_v1";
+
+export async function fetchTranslation(
+  surahNumber: number
+): Promise<Record<number, string>> {
+  const cache = readCache<Record<string, Record<number, string>>>(TRANS_CACHE_KEY);
+  const hit = cache[surahNumber];
+  if (hit) return hit;
+
+  const res = await fetch(
+    `https://api.alquran.cloud/v1/surah/${surahNumber}/en.asad`
+  );
+  if (!res.ok) throw new Error("تعذر جلب الترجمة، تحقق من اتصالك بالإنترنت");
+  const data = await res.json();
+  const ayahs = data?.data?.ayahs || [];
+  const out: Record<number, string> = {};
+  for (const a of ayahs) {
+    // إزالة رموز الحواشي [12] من نص الترجمة
+    out[a.numberInSurah] = String(a.text || "").replace(/\[\d+\]/g, "").trim();
+  }
+  cache[surahNumber] = out;
+  writeCache(TRANS_CACHE_KEY, cache);
+  return out;
+}
+
 // ==================== مواقيت الصلاة ====================
 
 const MAKKAH = { lat: 21.4225, lon: 39.8262 };

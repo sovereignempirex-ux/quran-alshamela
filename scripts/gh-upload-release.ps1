@@ -16,7 +16,8 @@ $rel = Invoke-RestMethod -Uri ("https://api.github.com/repos/" + $repo + "/relea
 $root = Join-Path (Split-Path $PSScriptRoot -Parent) "release"
 $files = @(Get-ChildItem $root -File | Where-Object {
         ($_.Name -like "Quran-AlShamela*.exe" -and $_.Name -notlike "*blockmap*" -and $_.Name -notlike "*uninstaller*") -or
-        ($_.Name -like "Quran-AlShamela*.apk")
+        ($_.Name -like "Quran-AlShamela*.apk") -or
+        ($_.Name -eq "web-app.zip")
     })
 
 # delete old same-name assets first

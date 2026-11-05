@@ -15,6 +15,7 @@ interface AudioBarProps {
   speed: number;
   volume: number;
   autoNext: boolean;
+  repeatAyah: boolean;
   currentTime: number;
   duration: number;
   onSettings: (s: AppSettings | ((p: AppSettings) => AppSettings)) => void;
@@ -38,6 +39,7 @@ export default function AudioBar({
   speed,
   volume,
   autoNext,
+  repeatAyah,
   currentTime,
   duration,
   onSettings,
@@ -108,12 +110,20 @@ export default function AudioBar({
     };
   }, [audioRef, onAudioLoading, onDuration, onPlaying, onTime]);
 
-  // نهاية السورة: الانتقال للتالية
+  // نهاية السورة: التكرار أولاً ثم الانتقال للتالية
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
     const onEnded = () => {
       onPlaying(false);
+      // تكرار التلاوة: إعادة نفس السورة من البداية
+      if (repeatAyah) {
+        audio.currentTime = 0;
+        audio.play().catch(() => undefined);
+        onPlaying(true);
+        onToast("🔁 أُعيدت التلاوة من البداية");
+        return;
+      }
       if (!autoNext) return;
       const next = surahNumber === 114 ? 1 : surahNumber + 1;
       onToast(`الانتقال إلى سورة ${surahData.find((s) => s.number === next)?.name} ▶`);
@@ -121,7 +131,7 @@ export default function AudioBar({
     };
     audio.addEventListener("ended", onEnded);
     return () => audio.removeEventListener("ended", onEnded);
-  }, [audioRef, autoNext, surahNumber, onOpenSurah, onPlaying, onToast]);
+  }, [audioRef, autoNext, repeatAyah, surahNumber, onOpenSurah, onPlaying, onToast]);
 
   // السرعة والمستوى
   useEffect(() => {
@@ -195,6 +205,14 @@ export default function AudioBar({
               onClick={() => onSettings((p) => ({ ...p, autoNext: !p.autoNext }))}
             >
               {autoNext ? "🔁 تتابع السور: مفعّل" : "↪ تتابع السور: معطل"}
+            </button>
+
+            <button
+              className="btn-ghost !py-1.5 !px-3 text-xs"
+              onClick={() => onSettings((p) => ({ ...p, repeatAyah: !p.repeatAyah }))}
+              title="إعادة نفس السورة عند نهايتها"
+            >
+              {repeatAyah ? "🔂 التكرار: مفعّل" : "🔂 التكرار: معطل"}
             </button>
 
             {/* تنزيل */}

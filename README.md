@@ -23,6 +23,11 @@
 | 📊 **إحصاءات قراءة** | عدّاد آيات يومي + 🔥 سلسلة أيام متتالية (streak) + رسم أسبوعي |
 | 🎯 **ورد يومي** | حدّد هدفك اليومي (آيات) وشاهد شريط إنجازك يتقدّم |
 | 🧠 **وضع الحفظ (تسميع)** | إخفاء نص الآيات بضبابية، وكل نقرة تكشف ثلثها للتسميع |
+| ⬇️ **تحديث ذاتي** | التطبيق يحدّث نفسه في الويب وويندوز وأندرويد دون تدخل المستخدم |
+| 🔂 **تكرار التلاوة** | إعادة نفس السورة تلقائياً عند نهايتها |
+| 🌐 **ترجمة إنجليزية** | تحت الآية (إصدار Muhammad Asad) مع كاش محلي |
+| 🧭 **اتجاه القبلة** | بوصلة دقيقة نحو الكعبة عند تمكين الموقع |
+| 💾 **نسخ احتياطي** | تصدير/استيراد كل بياناتك في ملف JSON |
 | 📥 **قسم تنزيل** | روابط مباشرة لِـ EXE/APK عبر GitHub Releases (في الويب فقط) |
 | ☕ **دعم Ko-fi** | أعلى الموقع + بطاقة دعم برمز QR (نسخة الويب) |
 | 🌟 آية اليوم | من مصحف المدينة مع التفسير الميسّر |
@@ -33,6 +38,16 @@
 | ⚖ مواقيت الصلاة | حسب موقعك (Method=4 جامعة أم القرى) |
 | 🔖 علامات مرجعية | حفظ الآيات واستئناف آخر قراءة تلقائياً |
 | 🌓 تلقائي | ليلي/نهاري/تلقائي + أرقام عربية شرقيّة |
+
+## ⬇️ التحديث الذاتي (كيف يعمل؟)
+
+| المنصة | الآلية |
+|---|---|
+| 🌐 **الويب** | مكوّن `AppUpdater` يفحص `/version.json` كل 5 دقائق، وعند تغيّر الإصدار يعيد التحميل تلقائياً |
+| 🪟 **ويندوز EXE** | إلكترون يفحص GitHub Releases عند الإقلاع + كل 30 دقيقة؛ ينزّل `web-app.zip` ويستبدل النسخة ويُعيد تشغيل نفسه (سقوط آمن عند عدم الاتصال) |
+| 🤖 **أندرويد APK** | `@capgo/capacitor-updater` يفحص `auto_update.json` ويطبّق `web-app.zip` بصمت |
+
+جميع القنوات تشترك في أرتِفاكت واحد: **web-app.zip** يُرفع مع كل إصدار (ناتج `out\\` بدون مجلد التنزيلات).
 
 ## 🏗 البنية
 
@@ -56,12 +71,17 @@
 npm install              # تثبيت الاعتماديات
 npm run dev              # التطوير على http://localhost:3000
 
-npm run build            # بناء ثابت → out\
+npm run build            # بناء ثابت → out\ (يشمل ترقيم version.json)
 npm run electron:build   # حزم ويندوز (Setup + Portable) في release\
-npm run cap:apk          # حزمة أندرويد debug APK
+npm run cap:apk          # حزمة أندرويد debug APK (minSdk 23 = أندرويد 6.0+)
+npm run pack:web         # ضغط out\ → release\web-app.zip (أرتِفاكت التحديث الذاتي)
 
-node scripts/make-icon.cjs   # تجديد أيقونة build/icon.png + أيقونات أندرويد
-node scripts/make-ico.cjs    # أيقونة ويندوز icon.ico
+# عند إصدار نسخة جديدة:
+#   1) عدّل "version" في package.json
+#   2) node scripts/stamp-version.cjs   → public/version.json + public/auto_update.json
+#   3) npm run electron:build && npm run cap:apk && npm run pack:web
+#   4) powershell -File scripts/gh-upload-release.ps1  (يرفع EXE+APK+web-app.zip)
+#   5) npx vercel deploy --prod --yes
 ```
 
 > ⚠️ بعد أي `npm install`: لا بد إعادة ترقيعات electron-builder الموجودة في [`scripts/eb-patches.md`](scripts/eb-patches.md)

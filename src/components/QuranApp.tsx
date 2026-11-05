@@ -27,6 +27,7 @@ import FavoritesSection from "@/components/FavoritesSection";
 import TafsirModal from "@/components/TafsirModal";
 import DownloadsSection from "@/components/DownloadsSection";
 import KofiWidget from "@/components/KofiWidget";
+import AppUpdater from "@/components/AppUpdater";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -38,6 +39,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   volume: 1,
   dailyGoal: 10,
   memorize: false,
+  repeatAyah: false,
+  showTranslation: false,
 };
 
 export default function QuranApp() {
@@ -302,6 +305,9 @@ export default function QuranApp() {
 
       {entered && (
         <div className="min-h-screen">
+          {/* فاحص التحديث الذاتي — يعمل بأي بيئة (ويب/إلكترون/كاباسيتور) */}
+          <AppUpdater onToast={toast} />
+
           <Header
             section={section}
             onSection={setSection}
@@ -435,6 +441,7 @@ export default function QuranApp() {
               speed={settingsLS.value.speed}
               volume={settingsLS.value.volume}
               autoNext={settingsLS.value.autoNext}
+              repeatAyah={settingsLS.value.repeatAyah}
               currentTime={currentTime}
               duration={duration}
               onSettings={settingsLS.setValue}

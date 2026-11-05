@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppSettings, LastRead, SectionId } from "@/lib/types";
 import { gregorianToday, hijriToday, toEasternNumbers } from "@/lib/utils";
 import { reciters } from "@/lib/reciters";
@@ -159,6 +159,68 @@ function SettingsPanelInner({
   onSettings: (s: AppSettings | ((p: AppSettings) => AppSettings)) => void;
   onClose: () => void;
 }) {
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [backupNote, setBackupNote] = useState("");
+
+  // مفاتيح البيانات التي تُصدَّر / تُستورد (نسخة احتياطية كاملة)
+  const DATA_KEYS = [
+    "quranAppSettings",
+    "quranFavorites",
+    "quranAyahBookmarks",
+    "quranLastRead",
+    "quranKhatma",
+    "quranStats",
+  ] as const;
+
+  const exportBackup = () => {
+    const backup: Record<string, unknown> = {
+      app: "quran-alshamela",
+      exportedAt: new Date().toISOString(),
+    };
+    for (const k of DATA_KEYS) {
+      const raw = localStorage.getItem(k);
+      if (raw !== null) {
+        try {
+          backup[k] = JSON.parse(raw);
+        } catch {
+          backup[k] = raw;
+        }
+      }
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quran-alshamela-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setBackupNote("✓ تم تنزيل ملف النسخة الاحتياطية");
+  };
+
+  const importBackup = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result || "{}"));
+        let restored = 0;
+        for (const k of DATA_KEYS) {
+          if (data[k] !== undefined) {
+            localStorage.setItem(k, JSON.stringify(data[k]));
+            restored++;
+          }
+        }
+        if (!restored) {
+          setBackupNote("⚠ الملف لا يحتوي بيانات التطبيق");
+          return;
+        }
+        window.location.reload(); // إعادة التحميل لتطبيق البيانات فوراً
+      } catch {
+        setBackupNote("⚠ ملف غير صالح");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div className="flex items-center justify-between gap-4 py-3 border-b border-[var(--border)] last:border-0">
       <span className="text-sm text-[var(--muted)]">{label}</span>
@@ -256,6 +318,19 @@ function SettingsPanelInner({
         </button>
       </Row>
 
+      <Row label="ترجمة إنجليزية تحت الآية">
+        <button
+          onClick={() => onSettings((p) => ({ ...p, showTranslation: !p.showTranslation }))}
+          className={`px-4 py-1.5 rounded-full text-xs border transition-all ${
+            settings.showTranslation
+              ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+              : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          {settings.showTranslation ? "🌐 مفعّلة" : "معطّلة"}
+        </button>
+      </Row>
+
       <Row label="طريقة العرض">
         <div className="flex gap-2">
           {(
@@ -298,6 +373,36 @@ function SettingsPanelInner({
             }}
           />
         </button>
+      </Row>
+
+      {/* النسخ الاحتياطي — تصدير/استيراد كل بيانات المستخدم */}
+      <Row label="📤 تصدير بياناتي (نسخة احتياطية)">
+        <button className="btn !py-1.5 text-xs" onClick={exportBackup}>
+          تنزيل JSON
+        </button>
+      </Row>
+
+      <Row label="📥 استيراد نسخة احتياطية">
+        <div className="flex items-center gap-2">
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            onClick={() => importInputRef.current?.click()}
+          >
+            اختيار ملف
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importBackup(f);
+              e.target.value = "";
+            }}
+          />
+          <span className="text-[11px] text-[var(--muted)]">{backupNote}</span>
+        </div>
       </Row>
 
       <button className="btn-ghost w-full mt-4" onClick={onClose}>

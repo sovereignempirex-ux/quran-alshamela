@@ -61,6 +61,8 @@ export interface AppSettings {
   volume: number; // 0..1
   dailyGoal: number; // ورد يومي: عدد الآيات المستهدف
   memorize: boolean; // وضع الحفظ (تسميع): إخفاء النص تدريجياً
+  repeatAyah: boolean; // تكرار التلاوة: يعيد السورة من البداية عند نهايتها
+  showTranslation: boolean; // ترجمة إنجليزية تحت الآية (عرض آية بسطر)
 }
 
 export interface TafsirSource {
