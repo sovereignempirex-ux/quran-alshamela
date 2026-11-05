@@ -4,7 +4,7 @@
 // وعند النشر المحلي يمكن عرضها من downloads ×: npm run web:downloads
 // ============================================================
 
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 const GIT_USER = "sovereignempirex-ux";
 const GIT_REPO = "quran-alshamela";
 export interface DownloadEntry {

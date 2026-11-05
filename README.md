@@ -1,96 +1,88 @@
-﻿# 📖 القرآن الكريم — مصحف الشاملة (تطبيق سطحي + جوال + ويب)
+﻿# 📖 مصحف الشاملة — القرآن الكريم على الويب وسطح المكتب والجوال
 
-تطبيق قرآني متكامل بـ **Next.js (تصدير ثابت) + React 18 + TypeScript + Tailwind CSS** —
-**يعمل بالكامل من جهاز المستخدم دون سيرفر**: كل البيانات تُجلب مباشرة من إنترنت المستخدم
-(quran.com · alquran.cloud · aladhan) مع **ذاكرة محلية ذكية** تعيد عرض كل ما تم تحميله
-سابقاً حتى عند انقطاع النت.
+<div align="center">
 
-## الحزمة النهائية (جاهزة للتوزيع في مجلد `release/`)
+[![Web — Vercel](https://img.shields.io/badge/ويب-Vercel%20إنتاج-000?style=flat-square&logo=vercel&logoColor=white)](https://quran-alshamela.vercel.app)
+[![v2.3.0](https://img.shields.io/badge/إصدار-2.3.0-D4AF37?style=flat-square)](#)
+[![License: MIT](https://img.shields.io/badge/رخصة-MIT-3B82F6?style=flat-square)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat-square&logo=next.js)](#)
+[![Ko-fi](https://img.shields.io/badge/داعمنا%20على-Ko--fi-54b2c7?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/G6R42A0N73)
 
-| الملف | الوصف | الحجم |
-|---|---|---|
-| `Quran-AlShamela Setup 2.2.0.exe` | مثبّت NSIS لويندوز (باختصار سطح مكتب ومجلد تثبيت مختار) | ~115MB |
-| `Quran-AlShamela 2.2.0.exe` | نسخة محمولة تعمل دون تثبيت | ~115MB |
-| `Quran-AlShamela-v2.2.0-debug.apk` | تطبيق أندرويد (APK) | ~4.9MB |
+**تطبيق قرآني متكامل: ويب + ويندوز + أندرويد — يعمل بلا سيرفر، وكل البيانات تُجلب مباشرة من إنترنت المستخدم**
 
-> ملاحظة: الـ APK موقّع بتوقيع التطوير (debug) وهو صالح للتثبيت والتجربة الشخصية؛
-> للنشر على متجر Google Play يلزم لاحقاً إنشاء keystore خاص وبناء نسخة موقّعة (`gradlew assembleRelease`).
+[نسخة الويب](https://quran-alshamela.vercel.app) · [تنزيل الحزم](https://github.com/sovereignempirex-ux/quran-alshamela/releases) · [ادعمنا ☕](https://ko-fi.com/G6R42A0N73)
 
-## ما الجديد في الإصدار 2.2.0
+</div>
 
-- **بدون سيرفر نهائياً** — طبقة عميل مباشرة (`src/lib/api.ts`) تجلب من quran.com و alquran.cloud و aladhan مباشرة من المتصفح.
-- **ذاكرة محلية ذكية** — أي سورة أو تفسير يُفتح يُخزَّن على الجهاز (localStorage) ويظهر فوراً حتى دون إنترنت، مع تحديث بالخلفية عند عودة الاتصال + شريط إشعار عند الانقطاع.
-- **وضع مظهر "تلقائي"** — ليلي بعد 7 مساءً وحتى 6 صباحاً (⏰ تلقائي في الإعدادات) مع سكربت ما قبل الرسم لمنع الوميض.
-- **شريط تقدم القراءة** أعلى الشاشة + زر ⬆ "العودة للأعلى" داخل المصحف.
-- **تنقّل سريع بين السور** — أزرار ⏮⏭ في رأس القارئ + لوحة المفاتيح (يمين=السابقة، يسار=التالية).
-- **حواف آمنة** (`env(safe-area-inset-*)`) لشاشات الأندرويد الحديثة + أندرويد بملء الشاشة بلا شريط عنوان.
-- **اختصارات إلكترون**: F11 ملء الشاشة، Ctrl+R إعادة التحميل، Ctrl+= / Ctrl+- / Ctrl+0 تكبير وتصغير.
-- **أيقونة مخصصة** (هلال ونجم ذهبي) بواسطات `scripts/make-icon.cjs` و `scripts/make-ico.cjs`.
+---
 
-## التشغيل
+## ✨ الميزات (ما الجديد في 2.3.0)
+
+| الميزة | الوصف |
+|---|---|
+| 📊 **إحصاءات قراءة** | عدّاد آيات يومي + 🔥 سلسلة أيام متتالية (streak) + رسم أسبوعي |
+| 🎯 **ورد يومي** | حدّد هدفك اليومي (آيات) وشاهد شريط إنجازك يتقدّم |
+| 🧠 **وضع الحفظ (تسميع)** | إخفاء نص الآيات بضبابية، وكل نقرة تكشف ثلثها للتسميع |
+| 📥 **قسم تنزيل** | روابط مباشرة لِـ EXE/APK عبر GitHub Releases (في الويب فقط) |
+| ☕ **دعم Ko-fi** | أعلى الموقع + بطاقة دعم برمز QR (نسخة الويب) |
+| 🌟 آية اليوم | من مصحف المدينة مع التفسير الميسّر |
+| 📚 تفسير متعدد | الميسّر، ابن كثير، الطبري، القرطبي |
+| 🔍 بحث فوري | بقاعدة بيانات quran.com للكلمات |
+| 🎧 تكوينات القرّاء | أكثر من 20 قارئاً من MP3Quran |
+| 🀆 ختمة القرآن | تعلّم سور مكتملة وتتبع تقدمك 114/114 |
+| ⚖ مواقيت الصلاة | حسب موقعك (Method=4 جامعة أم القرى) |
+| 🔖 علامات مرجعية | حفظ الآيات واستئناف آخر قراءة تلقائياً |
+| 🌓 تلقائي | ليلي/نهاري/تلقائي + أرقام عربية شرقيّة |
+
+## 🏗 البنية
+
+- **Next.js 14 (تصدير ثابت)** — كل الحزم تُبنى من نفس `out\`
+- **إلكترون** — نافذة سطح المكتب تخدم الموقع داخلياً على `127.0.0.1:{port}`
+- **Capacitor** — تطبيق أندرويد الأصلي
+- **المصادر:** quran.com + alquran.cloud + aladhan.com + mp3quran
+
+## 📥 التنزيل (إصدار v2.3.0)
+
+من [صفحة الإصدارات](https://github.com/sovereignempirex-ux/quran-alshamela/releases) تجد:
+- **Quran-AlShamela.Setup.2.3.0.exe** — المثبّت الكامل لويندوز (~115MB)
+- **Quran-AlShamela.2.3.0.exe** — نسخة محمولة تعمل دون تثبيت (مناسبة لِومضات USB)
+- **Quran-AlShamela-v2.3.0-debug.apk** — أندرويد 6.0+
+
+أو من قسم **📥 تنزيل التطبيق** في [الموقع](https://quran-alshamela.vercel.app)
+
+## 🛠 التطوير
 
 ```bash
-npm install
+npm install              # تثبيت الاعتماديات
+npm run dev              # التطوير على http://localhost:3000
 
-# نسخة ويب للتطوير
-npm run dev
+npm run build            # بناء ثابت → out\
+npm run electron:build   # حزم ويندوز (Setup + Portable) في release\
+npm run cap:apk          # حزمة أندرويد debug APK
 
-# تطبيق ويندوز EXE (تثبيت + نسخة محمولة)
-npm run electron:build
-# الملفات تظهر في: release/
-
-# تطبيق أندرويد APK
-npm run cap:apk
-# الملف: android\app\build\outputs\apk\debug\app-debug.apk
+node scripts/make-icon.cjs   # تجديد أيقونة build/icon.png + أيقونات أندرويد
+node scripts/make-ico.cjs    # أيقونة ويندوز icon.ico
 ```
 
-## البناء (توزيع فيزيائي)
+> ⚠️ بعد أي `npm install`: لا بد إعادة ترقيعات electron-builder الموجودة في [`scripts/eb-patches.md`](scripts/eb-patches.md)
 
-| الهدف | الأمر | المخرجات |
-|---|---|---|
-| ويندوز (تثبيت NSIS + محمول) | `npm run electron:build` | `release/Quran-AlShamela-*.exe` |
-| أندرويد (APK تجريبي) | `npm run cap:apk` | `android/app/build/outputs/apk/debug/` |
+## 🚀 النشر
 
-يشترط بناء APK وجود Android SDK (على هذا الجهاز مثبت في `C:\Users\New PC\AppData\Local\Android\Sdk`).
+- **Vercel:** `npx vercel deploy --prod --yes` — الإعدادات في `vercel.json` (framework=nextjs)
+- **نسختك الموزّعة:** GitHub Releases عبر `scripts/gh-release.ps1` + `scripts/gh-upload-release.ps1`
+- يظهر قسم تنزيل الحزم **في نسخة الويب فقط**؛ ويُخفى تلقائياً داخل EXE/APK (كشف البيئة).
 
-> ⚠️ على هذا الجهاز توجد ترقيعات مطلوبة داخل `node_modules` لعمل `electron-builder`
-> (بسبب سياسة Smart App Control) — التفاصيل في `scripts/eb-patches.md`، وتلزم إعادتها إن حُذف `node_modules`.
+## ☕ الدعم
 
-## كيف يعمل دون سيرفر؟
+المشروع مجاني ومفتوح دائماً — إن أردت المساهمة في استدامة الاستضافة والتطوير:
+<div align="center">
+<a href="https://ko-fi.com/G6R42A0N73">
+<img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="ادعمنا على Ko-fi" height="42">
+</a>
+</div>
 
-- `next build` ينتج تصديراً ثابتاً في `out/` (HTML/JS/CSS فقط).
-- **إلكترون** (`electron/main.cjs`) يخدم هذه الملفات عبر خادم محلي صغير داخل التطبيق ويفتح نافذته.
-- **كاباسيتور** ينسخ `out/` إلى أصول الأندرويد ويخدمها داخل WebView (`npx cap sync android`).
-- طبقة البيانات `src/lib/api.ts` تستدعي المصادر مباشرة من المتصفح وتحفظ السور والتفاسير
-  في `localStorage` (`quranSurahCache_v1` · `quranTafsirCache_v1`)، فعرض ما هو محفوظ
-  فوري ثم تحديث بالخلفية — لذا تعمل السور والتفاسير المفتوحة سابقاً حتى دون إنترنت.
+---
 
-## المميزات (الفرونت اند)
-
-- **Splash شاشة افتتاحية** ثم Header يستعرض التاريخين الميلادي والهجري.
-- **الرئيسية**: آية اليوم (بتفسيرها) + مواقيت الصلاة (عدّاد للصلاة القادمة + جغرافيا) + متتبّع ختمة (أتممت/114) + متابعة آخر قراءة.
-- **قائمة السور**: بحث وتصفية (مكية/مدنية) وترقيم شرقي.
-- **المصحف (القارئ)**: نمطا عرض (مصحف متصل / آية بسطر)، حجم الخط، قائمة سياق للآية (تلاوة من هنا، تفسير، حفظ، نسخ، مشاركة)، حفظ آخر قراءة تلقائياً أثناء التمرير، وسم أتممت السورة.
-- **التلاوة**: 38 قارئاً من mp3quran + سرعات + مستوى صوت + تتابع تلقائي + تنزيل.
-- **التفسير**: التفسير الميسّر والجلالين (TafsirModal مع تنقّل بين الآيات).
-- **البحث** في المصحف بالنتائج المرتبطة بأسماء السور.
-- **المفضلة**: سور محفوظة آيات محفوظة (علامات مرجعية).
-
-## الباك اند القديم (تاريخي)
-
-كان التطبيق يعمل عبر نقاط API سيرفر (`/api/...`) واستُبدلت في النسخة الحالية
-بطبقة عميل مباشرة (`src/lib/api.ts`) لتناسب التطبيقات السطحية والجوال بدون سيرفر.
-
-## النشر على GitHub و Vercel
-
-- **الكود:** https://github.com/sovereignempirex-ux/quran-alshamela
-- **نسخة الويب (إنتاج):** https://quran-alshamela.vercel.app
-- ملفات EXE/APK تُرفع كـ **GitHub Releases** (أحجام EXE تتجاوز حد 100MB في git العادي):
-
-```powershell
-powershell -File scripts/gh-release.ps1          # إنشاء إصدار v<version>
-powershell -File scripts/gh-upload-release.ps1   # رفع EXE/APK من release/ إلى الإصدار
-```
-
-- قسم «تنزيل التطبيق» في الويب يحضر أحجام المرفقات عبر GitHub API تلقائياً، ويُخفى داخل EXE/APK.
-- رفع Vercel: `npx vercel deploy --prod --yes` (الإعداد في vercel.json: framework=nextjs).
+<div align="center">
+صدق الله العظيم — صنع بإتقان من عمر 🌟
+</div>

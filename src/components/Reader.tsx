@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import type {
   AppSettings,
   Ayah,
@@ -36,6 +36,7 @@ interface ReaderProps {
   isCompleted: (n: number) => boolean;
   onToggleCompleted: (n: number) => void;
   onSurahNav: (dir: -1 | 1) => void;
+  onRecordVerse: () => void; // تسجيل آية مقروءة في إحصاءات اليوم
 }
 
 export default function Reader({
@@ -62,6 +63,7 @@ export default function Reader({
   isCompleted,
   onToggleCompleted,
   onSurahNav,
+  onRecordVerse,
 }: ReaderProps) {
   const [menu, setMenu] = useState<{
     ayahIndex: number;
@@ -71,6 +73,8 @@ export default function Reader({
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollDoneRef = useRef(false);
   const lastSavedRef = useRef<number>(0);
+  // وضع الحفظ: نسبة افصاح كل آية (0 مخفي → 33% → 66% → مكشوفة كاملة)
+  const [reveal, setReveal] = useState<Record<number, number>>({});
 
   // == تحديث 2.2: شريط تقدم القراءة + زر العودة للأعلى + تنقّل بلوحة المفاتيح ==
   const [progress, setProgress] = useState(0);
@@ -146,6 +150,39 @@ export default function Reader({
     }
   }, [scrollToAyah, ayahs.length]);
 
+  // == وضع الحفظ (تسميع) ==
+  // كل نقرة تُزيد نسبة الكشف: 0 → 1/3 → 2/3 → كاملة → ترجع مخفية
+  const revealStep = 1 / 3;
+  const cycleReveal = (i: number) => {
+    setReveal((prev) => {
+      const cur = prev[i] ?? 0;
+      const next = cur >= 1 ? 0 : Math.min(1, cur + revealStep);
+      if (next >= 1) onToast("أتممت إفصاح الآية ✓ راجعها ثم اضغطها مرة أخرى للتسميع");
+      return { ...prev, [i]: next };
+    });
+  };
+  const tokenStyle = (i: number): CSSProperties | undefined => {
+    if (!settings.memorize) return undefined;
+    const f = reveal[i] ?? 0;
+    const pct = Math.round(f * 100);
+    const style: CSSProperties = {};
+    if (f < 1) style.filter = `blur(${(9 * (1 - f)).toFixed(1)}px)`;
+    if (f > 0 && f < 1) {
+      style.WebkitMaskImage = `linear-gradient(270deg, black ${pct}%, transparent ${pct}%)`;
+      style.maskImage = `linear-gradient(270deg, black ${pct}%, transparent ${pct}%)`;
+    }
+    return style;
+  };
+  const handleTokenClick = (e: MouseEvent<HTMLElement>, i: number) => {
+    e.stopPropagation();
+    if (settings.memorize) {
+      cycleReveal(i);
+      return;
+    }
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenu({ ayahIndex: i, x: r.left + r.width / 2, y: r.bottom + 8 });
+  };
+
   // إغلاق قائمة السياق عند النقر خارجها
   useEffect(() => {
     if (!menu) return;
@@ -171,6 +208,7 @@ export default function Reader({
             const n = Number(el.dataset.ayah);
             if (n && (!scrollDoneRef.current || n !== lastSavedRef.current)) {
               lastSavedRef.current = n;
+              onRecordVerse();
               onSaveLastRead({
                 surahNumber: surah.number,
                 surahName: surah.name,
@@ -187,7 +225,14 @@ export default function Reader({
       window.removeEventListener("scroll", onScroll);
       if (timer) clearTimeout(timer);
     };
-  }, [ayahs.length, surah, onSaveLastRead]);
+  }, [ayahs.length, surah, onSaveLastRead, onRecordVerse]);
+
+  // إحصاءات: تسجيل أول آية تُقرأ عند فتح سورة + تصفير نسبة الإفصاح عند تغيير السورة
+  useEffect(() => {
+    lastSavedRef.current = 0;
+    setReveal({});
+    if (ayahs.length) onRecordVerse();
+  }, [ayahs.length, surah, onRecordVerse]);
 
   const bismillah = surah.number !== 9 && surah.number !== 1;
   const continuous = settings.displayMode === "continuous";
@@ -246,6 +291,21 @@ export default function Reader({
             }
           >
             {continuous ? "📜 عرض: مصحف متصل" : "📄 عرض: آية بسطر"}
+          </button>
+
+          {/* وضع الحفظ (تسميع): إخفاء النص تدريجياً */}
+          <button
+            className={`!py-1.5 text-xs ${settings.memorize ? "btn" : "btn-ghost"}`}
+            title="اسمِع حفظك: اضغط على الآية لكشفها تدريجياً"
+            onClick={() => {
+              onSettings((p) => ({ ...p, memorize: !p.memorize }));
+              if (!settings.memorize) {
+                setReveal({});
+                onToast("وضع الحفظ مُفعَّل 🧠 — اضغط الآية لكشف جزء منها");
+              }
+            }}
+          >
+            {settings.memorize ? "🧠 حفظ: يعمل" : "🧠 وضع الحفظ"}
           </button>
 
           <button className="btn-ghost !py-1.5 text-xs" onClick={() => onToggleFavorite(surah)}>
@@ -337,15 +397,11 @@ export default function Reader({
                     >
                       <span
                         className="ayah-token cursor-pointer rounded-lg px-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          setMenu({ ayahIndex: i, x: r.left + r.width / 2, y: r.bottom + 8 });
-                        }}
+                        onClick={(e) => handleTokenClick(e, i)}
                         style={
                           activeIndex === i
-                            ? { background: "var(--gold-soft)", color: "var(--gold)" }
-                            : undefined
+                            ? { background: "var(--gold-soft)", color: "var(--gold)", ...tokenStyle(i) }
+                            : tokenStyle(i)
                         }
                       >
                         {ayah.text_uthmani}
@@ -378,11 +434,8 @@ export default function Reader({
                       <p className="ayah-text">
                         <span
                           className="ayah-token"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                            setMenu({ ayahIndex: i, x: r.left + r.width / 2, y: r.bottom + 8 });
-                          }}
+                          onClick={(e) => handleTokenClick(e, i)}
+                          style={tokenStyle(i)}
                         >
                           {ayah.text_uthmani}
                         </span>
@@ -491,7 +544,9 @@ export default function Reader({
       {/* معلومة التمرير */}
       {!loading && ayahs.length > 0 && (
         <p className="text-center text-[11px] text-[var(--muted)] opacity-60 mt-4">
-          اضغط على أي آية لعرض قائمة (تلاوة، تفسير، حفظ، مشاركة) · يتم حفظ آخر قراءة تلقائياً أثناء التمرير
+          {settings.memorize
+            ? "🧠 وضع الحفظ: اضغط على الآية لكشف جزء منها (ثلاث نقرات للمكاشفة الكاملة) — الإحصاءات تسجّل قراءتك تلقائياً"
+            : "اضغط على أي آية لعرض قائمة (تلاوة، تفسير، حفظ، مشاركة) · يتم حفظ آخر قراءة تلقائياً أثناء التمرير"}
         </p>
       )}
 

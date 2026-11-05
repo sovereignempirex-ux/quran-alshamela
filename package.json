@@ -1,6 +1,6 @@
 {
   "name": "quran-alshamela",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "القرآن الكريم - مصحف الشاملة الإلكتروني (Next.js - إلكترون + أندرويد)",
   "author": "Omar",
@@ -45,7 +45,10 @@
       "package.json"
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },

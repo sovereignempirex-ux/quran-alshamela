@@ -5,7 +5,9 @@ import type { LastRead, SectionId } from "@/lib/types";
 import { fetchVerseOfDay } from "@/lib/api";
 import PrayerTimesCard from "@/components/PrayerTimesCard";
 import KhatmaCard from "@/components/KhatmaCard";
+import StatsCard from "@/components/StatsCard";
 import { surahData } from "@/lib/surahData";
+import type { StatsData } from "@/lib/stats";
 
 interface VerseOfDayData {
   surahNumber: number;
@@ -24,6 +26,9 @@ interface HomeSectionProps {
   onGoto: (s: SectionId) => void;
   khatmaCompleted: number[];
   onResetKhatma: () => void;
+  stats: StatsData;
+  dailyGoal: number;
+  onGoal: (g: number) => void;
 }
 
 export default function HomeSection({
@@ -33,6 +38,9 @@ export default function HomeSection({
   onGoto,
   khatmaCompleted,
   onResetKhatma,
+  stats,
+  dailyGoal,
+  onGoal,
 }: HomeSectionProps) {
   const [odayVerse, setOdayVerse] = useState<VerseOfDayData | null>(null);
   const [odayLoading, setOdayLoading] = useState(true);
@@ -107,6 +115,9 @@ export default function HomeSection({
           </button>
         </div>
       )}
+
+      {/* إحصاءات القراءة + الورد اليومي */}
+      <StatsCard stats={stats} goal={dailyGoal} onGoal={onGoal} />
 
       {/* متتبّع ختمة القرآن */}
       <KhatmaCard

@@ -144,6 +144,35 @@ export default function DownloadsSection() {
         })}
       </div>
 
+      {/* دعم المشروع — Ko-fi */}
+      <div className="card !rounded-3xl !p-6 md:!p-8 flex items-center gap-5 flex-wrap">
+        <img
+          src="https://storage.ko-fi.com/cdn/useruploads/G6R42A0N73/qrcode.png?v=2"
+          alt="QR الدعم على Ko-fi"
+          className="rounded-xl"
+          style={{ width: 120, height: 120, objectFit: "contain", background: "#fff", padding: 6 }}
+          loading="lazy"
+        />
+        <div className="flex-1 min-w-60">
+          <p className="font-headings text-lg font-bold text-[var(--gold)] mb-1">
+            ☕ ادعم استمرار المشروع على Ko-fi
+          </p>
+          <p className="text-sm text-[var(--muted)] leading-6">
+            التطبيق مجاني بالكامل — تطويرك يكلّف وقتاً وجهداً. ساعدنا على إبقاء التطبيق
+            والموقع يعملين مجاناً للجميع بكوب قهوة.
+          </p>
+          <a
+            href="https://ko-fi.com/G6R42A0N73"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-3"
+            title="ادعمنا على Ko-fi"
+          >
+            <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height={36} loading="lazy" />
+          </a>
+        </div>
+      </div>
+
       {/* تعليمات التثبيت */}
       <div className="card !rounded-3xl !p-6 text-sm leading-7">
         <p className="font-headings text-[var(--gold)] font-bold mb-3">📌 تعليمات سريعة</p>

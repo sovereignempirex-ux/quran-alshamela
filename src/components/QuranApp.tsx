@@ -15,6 +15,7 @@ import { fetchSurahVerses } from "@/lib/api";
 import { defaultReciter } from "@/lib/reciters";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { autoThemeEffective } from "@/lib/utils";
+import { addCompletedSurah, addVerses, emptyStats, type StatsData } from "@/lib/stats";
 import Splash from "@/components/Splash";
 import Header from "@/components/Header";
 import HomeSection from "@/components/HomeSection";
@@ -25,6 +26,7 @@ import SearchSection from "@/components/SearchSection";
 import FavoritesSection from "@/components/FavoritesSection";
 import TafsirModal from "@/components/TafsirModal";
 import DownloadsSection from "@/components/DownloadsSection";
+import KofiWidget from "@/components/KofiWidget";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -34,6 +36,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoNext: true,
   speed: 1,
   volume: 1,
+  dailyGoal: 10,
+  memorize: false,
 };
 
 export default function QuranApp() {
@@ -43,6 +47,10 @@ export default function QuranApp() {
   const bookmarksLS = useLocalStorage<BookmarkAyah[]>("quranAyahBookmarks", []);
   const lastReadLS = useLocalStorage<LastRead | null>("quranLastRead", null);
   const khatmaLS = useLocalStorage<number[]>("quranKhatma", []);
+  const statsLS = useLocalStorage<StatsData>("quranStats", emptyStats);
+
+  // دمج الإعدادات المحفوظة مع الافتراضية (لسلامة المفتاح التناسقي القديمة)
+  const settings = { ...DEFAULT_SETTINGS, ...settingsLS.value };
 
   // == إدارة المفضلة والعلامات ==
 
@@ -228,6 +236,17 @@ export default function QuranApp() {
 
   const resetKhatma = () => khatmaLS.setValue([]);
 
+  // == إحصاءات القراءة ==
+  const recordVerse = useCallback(
+    () => statsLS.setValue((prev) => addVerses(prev, 1)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const recordCompleted = useCallback(() => {
+    statsLS.setValue((prev) => addCompletedSurah(prev));
+  }, []);
+
+
   // نسخ آية إلى الحافظة
   const copyAyah = async (surahMeta: SurahMeta, ayahNumber: number, text: string) => {
     const full = `﴿ ${text} ﴾\n— سورة ${surahMeta.name}، الآية ${ayahNumber}`;
@@ -286,11 +305,12 @@ export default function QuranApp() {
           <Header
             section={section}
             onSection={setSection}
-            settings={settingsLS.value}
+            settings={settings}
             onSettings={settingsLS.setValue}
             lastRead={lastReadLS.value}
             onContinue={(lr) => openSurah(lr.surahNumber, lr.ayahNumber)}
             showDownloads={isWebClient}
+            showDonate={isWebClient}
           />
 
           <main className="max-w-6xl mx-auto px-4 pt-6 pb-28">
@@ -302,6 +322,9 @@ export default function QuranApp() {
                 onGoto={(sec) => setSection(sec)}
                 khatmaCompleted={khatmaLS.value}
                 onResetKhatma={resetKhatma}
+                stats={statsLS.value}
+                dailyGoal={settings.dailyGoal}
+                onGoal={(g) => settingsLS.setValue((p) => ({ ...p, dailyGoal: g }))}
               />
             )}
 
@@ -323,7 +346,7 @@ export default function QuranApp() {
                 playing={playing}
                 currentTime={currentTime}
                 duration={duration}
-                settings={settingsLS.value}
+                settings={settings}
                 scrollToAyah={scrollToAyah}
                 favorites={favoritesLS.value}
                 bookmarks={bookmarksLS.value}
@@ -343,7 +366,11 @@ export default function QuranApp() {
                 onToast={toast}
                 onGoto={(sec) => setSection(sec)}
                 isCompleted={isKhatmaCompleted}
-                onToggleCompleted={toggleKhatmaCompleted}
+                onToggleCompleted={(n) => {
+                  const had = khatmaLS.value.includes(n);
+                  toggleKhatmaCompleted(n);
+                  if (!had) recordCompleted();
+                }}
                 onSurahNav={(dir) => {
                   if (!surah) return;
                   let next = surah.number + dir;
@@ -351,6 +378,7 @@ export default function QuranApp() {
                   if (next < 1) next = 114;
                   openSurah(next);
                 }}
+                onRecordVerse={recordVerse}
               />
             )}
 
@@ -371,11 +399,27 @@ export default function QuranApp() {
             {section === "downloads" && <DownloadsSection />}
           </main>
 
+          {/* زر الدعم العائم — نسخة الويب فقط */}
+          {isWebClient && <KofiWidget />}
+
           <footer className="border-t border-[var(--border)] py-10 text-center">
             <p className="font-headings text-xl mb-2 text-[var(--gold)]">صدق الله العظيم</p>
             <p className="text-sm text-[var(--muted)]">
               صنع بإتقان من <span className="text-[var(--gold)] font-bold">عمر</span> 🌟
             </p>
+            {isWebClient && (
+              <p className="mt-2">
+                <a
+                  href="https://ko-fi.com/G6R42A0N73"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block"
+                  title="ادعمنا على Ko-fi ☕"
+                >
+                  <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height={30} loading="lazy" />
+                </a>
+              </p>
+            )}
             <p className="mt-3 text-xs text-[var(--muted)] opacity-70">
               الآيات بخط عثماني من مصادر موثوقة | التلاوات من MP3Quran | التفاسير من مجمع الملك فهد
             </p>

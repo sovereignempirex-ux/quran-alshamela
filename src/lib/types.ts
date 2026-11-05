@@ -59,6 +59,8 @@ export interface AppSettings {
   autoNext: boolean; // الانتقال للسورة التالية تلقائياً
   speed: number; // سرعة التلاوة
   volume: number; // 0..1
+  dailyGoal: number; // ورد يومي: عدد الآيات المستهدف
+  memorize: boolean; // وضع الحفظ (تسميع): إخفاء النص تدريجياً
 }
 
 export interface TafsirSource {

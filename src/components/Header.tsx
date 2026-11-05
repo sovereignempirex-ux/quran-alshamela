@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { AppSettings, LastRead, SectionId } from "@/lib/types";
-import { gregorianToday, hijriToday } from "@/lib/utils";
+import { gregorianToday, hijriToday, toEasternNumbers } from "@/lib/utils";
 import { reciters } from "@/lib/reciters";
+import { KO_FI_URL } from "@/lib/kofi";
 
 const BASE_TABS: { id: SectionId; label: string; icon: string }[] = [
   { id: "home", label: "الرئيسية", icon: "🏠" },
@@ -26,6 +27,7 @@ interface HeaderProps {
   lastRead: LastRead | null;
   onContinue: (lr: LastRead) => void;
   showDownloads?: boolean;
+  showDonate?: boolean;
 }
 
 export default function Header({
@@ -36,6 +38,7 @@ export default function Header({
   lastRead,
   onContinue,
   showDownloads = false,
+  showDonate = false,
 }: HeaderProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [dates, setDates] = useState({ g: "", h: "" });
@@ -77,6 +80,17 @@ export default function Header({
             )}
 
             {/* الثيم والإعدادات */}
+            {showDonate && (
+              <a
+                href={KO_FI_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn !py-1.5 text-xs !bg-[#54b2c7] !text-white !border-[#54b2c7] hover:opacity-90"
+                title="ادعمنا على Ko-fi ☕"
+              >
+                ☕ ادعمنا
+              </a>
+            )}
             <button
               className="btn-ghost !px-3 !py-1.5"
               title="تبديل الوضع"
@@ -207,6 +221,39 @@ function SettingsPanelInner({
             +
           </button>
         </div>
+      </Row>
+
+      <Row label="الورد اليومي المستهدف (آيات)">
+        <div className="flex items-center gap-1.5">
+          <button
+            className="btn-ghost !px-2.5 !py-1 text-xs"
+            onClick={() => onSettings((p) => ({ ...p, dailyGoal: Math.max(1, p.dailyGoal - 5) }))}
+          >
+            −
+          </button>
+          <span className="text-xs text-[var(--gold)] font-bold min-w-10 text-center">
+            {toEasternNumbers(settings.dailyGoal)}
+          </span>
+          <button
+            className="btn-ghost !px-2.5 !py-1 text-xs"
+            onClick={() => onSettings((p) => ({ ...p, dailyGoal: Math.min(200, p.dailyGoal + 5) }))}
+          >
+            +
+          </button>
+        </div>
+      </Row>
+
+      <Row label="وضع الحفظ (تسميع)">
+        <button
+          onClick={() => onSettings((p) => ({ ...p, memorize: !p.memorize }))}
+          className={`px-4 py-1.5 rounded-full text-xs border transition-all ${
+            settings.memorize
+              ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+              : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          {settings.memorize ? "🧠 يعمل" : "معطّل"}
+        </button>
       </Row>
 
       <Row label="طريقة العرض">

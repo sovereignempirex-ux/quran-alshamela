@@ -1,0 +1,9 @@
+{
+  "description": "📖 مصحف الشاملة — تطبيق قرآن كامل بلا سيرفر: تلاوة، تفسير، حفظ، ختمة، ورد يومي وإحصاءات قراءة. Quran app for Web + Windows + Android (Next.js, Electron, Capacitor)",
+  "homepage": "https://quran-alshamela.vercel.app",
+  "topics": [
+    "quran", "quran-app", "islamic-app", "nextjs", "react", "typescript",
+    "tailwindcss", "electron", "capacitor", "android", "windows",
+    "offline-first", "mushaf", "tafsir", "arabic", "rtl"
+  ]
+}
