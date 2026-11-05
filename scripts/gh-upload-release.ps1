@@ -13,6 +13,25 @@ Write-Output ("release tag: " + $tag)
 
 $rel = Invoke-RestMethod -Uri ("https://api.github.com/repos/" + $repo + "/releases/tags/" + $tag) -Headers @{ Authorization = "Bearer " + $pass; "User-Agent" = "curl-deploy" }
 
+$authHeader = @{ Authorization = "Bearer " + $pass; "X-GitHub-Api-Version" = "2022-11-28"; "User-Agent" = "opencode-deploy" }
+
+# find or create the release
+try {
+    $rel = Invoke-RestMethod -Uri ("https://api.github.com/repos/" + $repo + "/releases/tags/" + $tag) -Headers $authHeader
+    Write-Output ("release exists. id=" + $rel.id)
+} catch {
+    $createBody = [System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json @{
+        tag_name         = $tag
+        target_commitish = "main"
+        name             = "$tag - Quran AlShamela"
+        body             = "Release binaries: Windows Setup EXE, Windows Portable EXE, Android APK, Self-Update web-app.zip"
+        draft            = $false
+        prerelease       = $false
+    }))
+    $rel = Invoke-RestMethod -Uri ("https://api.github.com/repos/" + $repo + "/releases") -Method Post -Headers $authHeader -Body $createBody -ContentType "application/json; charset=utf-8"
+    Write-Output ("created release id=" + $rel.id)
+}
+
 $root = Join-Path (Split-Path $PSScriptRoot -Parent) "release"
 $files = @(Get-ChildItem $root -File | Where-Object {
         ($_.Name -like "Quran-AlShamela*.exe" -and $_.Name -notlike "*blockmap*" -and $_.Name -notlike "*uninstaller*") -or
