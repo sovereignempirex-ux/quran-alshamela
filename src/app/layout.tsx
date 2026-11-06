@@ -31,6 +31,13 @@ export const metadata: Metadata = {
     "مصحف إلكتروني شامل: تلاوات بصوت أشهر القرّاء، تفسير الآيات، البحث الفوري، المفضلة والعلامات المرجعية، آية اليوم — بتصميم أنيق يعمل على كل الأجهزة.",
   applicationName: "مصحف الشاملة",
   keywords: ["القرآن", "المصحف", "تلاوات", "تفسير", "آية اليوم"],
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
