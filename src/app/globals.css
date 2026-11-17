@@ -56,6 +56,81 @@ html[data-comfort="on"] body::before {
   opacity: 0.25;
 }
 
+/* ===== الثيمات اللونية الجاهزة (فوق الوضع الحالي دائماً) ===== */
+html[data-palette="olive"] {
+  --gold: #a8c66c;
+  --gold-soft: rgba(168, 198, 108, 0.14);
+}
+html[data-theme="light"][data-palette="olive"] {
+  --gold: #5d8a2e;
+  --gold-soft: rgba(93, 138, 46, 0.12);
+}
+html[data-palette="indigo"] {
+  --gold: #8fa8ff;
+  --gold-soft: rgba(143, 168, 255, 0.14);
+}
+html[data-theme="light"][data-palette="indigo"] {
+  --gold: #4a63c8;
+  --gold-soft: rgba(74, 99, 200, 0.12);
+}
+html[data-palette="desert"] {
+  --gold: #e0a96d;
+  --gold-soft: rgba(224, 169, 109, 0.14);
+}
+html[data-theme="light"][data-palette="desert"] {
+  --gold: #b07936;
+  --gold-soft: rgba(176, 121, 54, 0.12);
+}
+/* الثيم الرمضاني: ذهب ورديّ + زخرفة فوانيس خلفية */
+html[data-palette="ramadan"] {
+  --gold: #ffcf8f;
+  --gold-soft: rgba(255, 207, 143, 0.16);
+}
+html[data-theme="light"][data-palette="ramadan"] {
+  --gold: #c8862f;
+  --gold-soft: rgba(200, 134, 47, 0.12);
+}
+
+/* ===== تباين عالٍ (للكبار وضعف البصر) ===== */
+html[data-contrast="high"] {
+  --border: rgba(255, 255, 255, 0.35);
+  --muted: rgba(255, 255, 255, 0.88);
+  --panel: rgba(255, 255, 255, 0.09);
+}
+html[data-theme="light"][data-contrast="high"] {
+  --border: rgba(20, 35, 60, 0.4);
+  --muted: rgba(29, 37, 55, 0.88);
+  --panel: rgba(20, 35, 60, 0.07);
+}
+html[data-contrast="high"] body {
+  font-weight: 500;
+}
+
+/* ===== خط مبسط ومسافات واسعة (كتب الحركة — قراءة أوضح) ===== */
+html[data-simplefont="on"] body {
+  font-family: Arial, Tahoma, "Segoe UI", sans-serif !important;
+  line-height: 1.9 !important;
+  letter-spacing: 0.03em;
+}
+html[data-simplefont="on"] .ayah-text {
+  font-family: Arial, Tahoma, sans-serif !important;
+  letter-spacing: 0.06em;
+  line-height: 2.6 !important;
+  word-spacing: 0.25em;
+}
+
+/* احترام تفضيل النظام: تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 html {
   scroll-behavior: smooth;
   /* حواف الشاشات الحديثة (نحت فيديو للأندرويد الحديثة) */

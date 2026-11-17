@@ -13,6 +13,7 @@ const BASE_TABS: { id: SectionId; label: string; icon: string }[] = [
   { id: "surahs", label: "السور", icon: "📖" },
   { id: "search", label: "البحث", icon: "🔍" },
   { id: "favorites", label: "المفضلة", icon: "❤️" },
+  { id: "adhkar", label: "الأذكار", icon: "📿" },
   { id: "offline", label: "بدون نت", icon: "📴" },
 ];
 
@@ -182,6 +183,7 @@ function SettingsPanelInner({
 }) {
   const importInputRef = useRef<HTMLInputElement>(null);
   const [backupNote, setBackupNote] = useState("");
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   // مفاتيح البيانات التي تُصدَّر / تُستورد (نسخة احتياطية كاملة)
   const DATA_KEYS = [
@@ -249,6 +251,19 @@ function SettingsPanelInner({
     </div>
   );
 
+  const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
+    <button
+      onClick={onToggle}
+      className={`px-4 py-1.5 rounded-full text-xs border transition-all shrink-0 ${
+        on
+          ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+          : "border-[var(--border)] text-[var(--muted)]"
+      }`}
+    >
+      {on ? "مفعّل" : "معطّل"}
+    </button>
+  );
+
   return (
     <div>
       <h3 className="section-title text-lg mb-3">⚙️ الإعدادات</h3>
@@ -283,6 +298,62 @@ function SettingsPanelInner({
             </option>
           ))}
         </select>
+      </Row>
+
+      {/* الثيم اللوني الجاهز */}
+      <Row label="🎨 الثيم اللوني">
+        <div className="flex gap-1.5 flex-wrap justify-end">
+          {(
+            [
+              { id: "gold", label: "ذهبي", color: "#ffd700" },
+              { id: "olive", label: "زيتوني", color: "#a8c66c" },
+              { id: "indigo", label: "نيلي", color: "#8fa8ff" },
+              { id: "desert", label: "صحراوي", color: "#e0a96d" },
+              { id: "ramadan", label: "رمضان", color: "#ffcf8f" },
+            ] as const
+          ).map((p) => (
+            <button
+              key={p.id}
+              title={`ثيم ${p.label}`}
+              onClick={() => onSettings((s) => ({ ...s, palette: p.id }))}
+              className="w-8 h-8 rounded-full border-2 transition-all"
+              style={{
+                background: p.color,
+                borderColor: (settings.palette || "gold") === p.id ? "var(--text)" : "transparent",
+                transform: (settings.palette || "gold") === p.id ? "scale(1.12)" : undefined,
+              }}
+              aria-label={`ثيم ${p.label}`}
+            />
+          ))}
+        </div>
+      </Row>
+
+      <Row label="🔊 صوت النقر">
+        <Toggle
+          on={settings.clickSound}
+          onToggle={() => onSettings((p) => ({ ...p, clickSound: !p.clickSound }))}
+        />
+      </Row>
+
+      <Row label="📳 اهتزاز اللمس (هاتف)">
+        <Toggle
+          on={settings.haptics}
+          onToggle={() => onSettings((p) => ({ ...p, haptics: !p.haptics }))}
+        />
+      </Row>
+
+      <Row label="♿ تباين عالٍ (وضوح أكبر)">
+        <Toggle
+          on={settings.highContrast}
+          onToggle={() => onSettings((p) => ({ ...p, highContrast: !p.highContrast }))}
+        />
+      </Row>
+
+      <Row label="🔤 خط مبسط ومسافات واسعة">
+        <Toggle
+          on={settings.simpleFont}
+          onToggle={() => onSettings((p) => ({ ...p, simpleFont: !p.simpleFont }))}
+        />
       </Row>
 
       <Row label={`حجم خط الآيات (${settings.fontSize}px)`}>
@@ -380,6 +451,13 @@ function SettingsPanelInner({
         </button>
       </Row>
 
+      <Row label="🌅 سطوع تلقائي (ليلاً دافئ)">
+        <Toggle
+          on={settings.autoWarm}
+          onToggle={() => onSettings((p) => ({ ...p, autoWarm: !p.autoWarm }))}
+        />
+      </Row>
+
       <Row label="ترجمة إنجليزية تحت الآية">
         <button
           onClick={() => onSettings((p) => ({ ...p, showTranslation: !p.showTranslation }))}
@@ -467,6 +545,48 @@ function SettingsPanelInner({
           <span className="text-[11px] text-[var(--muted)]">{backupNote}</span>
         </div>
       </Row>
+
+      {/* الخصوصية والإبلاغ */}
+      <div className="mt-5 pt-4 border-t border-[var(--border)] flex gap-2 flex-wrap">
+        <button
+          className="btn-ghost !py-1.5 !px-3 text-[11px]"
+          title="التطبيق يعمل من جهازك — لا يرسل أي بيانات لأي سيرفر"
+          onClick={() => setPrivacyOpen(true)}
+        >
+          🔒 الخصوصية
+        </button>
+        <a
+          className="btn-ghost !py-1.5 !px-3 text-[11px]"
+          href="https://github.com/sovereignempirex-ux/quran-alshamela/issues/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="افتح مشكلة على GitHub وسنعالجها سريعاً"
+        >
+          🐞 أبلغ عن خطأ
+        </a>
+      </div>
+
+      {privacyOpen && (
+        <>
+          <div className="modal-backdrop" onClick={() => setPrivacyOpen(false)} />
+          <div className="modal-box right-1/2 translate-x-1/2 top-1/2 -translate-y-1/2 w-[min(92vw,460px)] p-6">
+            <h3 className="section-title !text-lg mb-3">🔒 الخصوصية — صفر تتبّع</h3>
+            <ul className="text-sm text-[var(--muted)] space-y-2 leading-7">
+              <li>✓ كل بياناتك (المفضلة، التقدم، الملاحظات) محفوظة على جهازك فقط</li>
+              <li>✓ لا حساب، لا تسجيل دخول، لا خوادم بيانات تخصنا</li>
+              <li>✓ لا أدوات تحليل ولا تتبّع ولا إعلانات</li>
+              <li>✓ التسميع الصوتي يُعالَج كلياً على جهازك — لا يُرفع صوتك لأي مكان</li>
+              <li>✓ الصور والتنزيلات تبقى داخل جهازك</li>
+              <li className="text-[var(--gold)]">
+                النصوص والتلاوات تُجلب مباشرة من مصادرها العامة عبر إنترنتك
+              </li>
+            </ul>
+            <button className="btn w-full mt-5" onClick={() => setPrivacyOpen(false)}>
+              فهمت ✓
+            </button>
+          </div>
+        </>
+      )}
 
       <button className="btn-ghost w-full mt-4" onClick={onClose}>
         إغلاق

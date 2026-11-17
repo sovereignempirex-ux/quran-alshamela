@@ -49,7 +49,10 @@ export interface LastRead {
   ayahNumber: number;
 }
 
-export type SectionId = "home" | "surahs" | "reader" | "search" | "favorites" | "offline" | "downloads";
+export type SectionId = "home" | "surahs" | "reader" | "search" | "favorites" | "offline" | "adhkar" | "downloads";
+
+// ثيمات لونية جاهزة
+export type Palette = "gold" | "olive" | "indigo" | "desert" | "ramadan";
 
 export interface AppSettings {
   theme: "dark" | "light" | "auto"; // ليلي/نهاري/تلقائي حسب الوقت
@@ -66,6 +69,12 @@ export interface AppSettings {
   showTajweed: boolean; // تلوين أحكام التجويد (مد/غنّة/قلقلة/إخفاء...)
   keepAwake: boolean; // مضاد للسكون: يمنع إطفاء الشاشة أثناء الاستخدام
   comfort: boolean; // وضع الراحة: ألوان دافئة ومسافات أوسع لراحة العين
+  palette: Palette; // الثيم اللوني الجاهز
+  autoWarm: boolean; // سطوع تلقائي: يفعّل الإضاءة الدافئة تلقائياً بعد المغرب
+  clickSound: boolean; // صوت نقرة خفيف عند الضغط على الأزرار
+  haptics: boolean; // اهتزاز لمسي عند الأزرار (هاتف)
+  highContrast: boolean; // تباين عالٍ للكبار وضعف البصر
+  simpleFont: boolean; // خط مبسط ومسافات واسعة (كتب الحركة ووضوح القراءة)
 }
 
 export interface TafsirSource {

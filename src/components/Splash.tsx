@@ -1,10 +1,30 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { toEasternNumbers } from "@/lib/utils";
+
 interface SplashProps {
   onEnter: () => void;
 }
 
+// تلميحات دوّارة تظهر في شاشة البداية
+const TIPS = [
+  "💡 اضغط مطولاً على أي آية لفتح قائمتها",
+  "🎤 جرّب التسميع الصوتي — يقيّم تسميعك كلمة كلمة",
+  "🤖 اسأل المساعد الذكي عن تفسير أي آية",
+  "⏱ فعّل مؤقت النوم لتتلاوت لك آياتك قبل النوم",
+  "💾 «حفظ بدون نت» يجعل السورة تعمل بلا إنترنت",
+  "🎨 غير الثيم من الإعدادات — 5 ثيمات جاهزة",
+  "📿 أذكارك اليومية بعدّاد في تبويب الأذكار",
+  "⌨️ اختصار J/K للتنقل بين السور من الكيبورد",
+];
+
 export default function Splash({ onEnter }: SplashProps) {
+  const [tip, setTip] = useState(0);
+  useEffect(() => {
+    setTip(Math.floor(Math.random() * TIPS.length));
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-[1000] flex flex-col items-center justify-center text-center px-6"
@@ -14,14 +34,14 @@ export default function Splash({ onEnter }: SplashProps) {
       }}
     >
       <div className="fade-in-up">
-        <div className="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
+        <div className="bismillah !mb-4">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
 
         <h1 className="splash-title">القرآن الكريم</h1>
         <p className="text-xl md:text-2xl text-[var(--muted)] mb-2">
           مصحف الشاملة الإلكتروني
         </p>
-        <p className="text-sm text-[var(--muted)] opacity-75 mb-10">
-          تلاوات • تفسير • بحث • آية اليوم — في تطبيق واحد
+        <p className="text-sm text-[var(--muted)] opacity-75 mb-8">
+          تلاوات • تفسير • ذكاء اصطناعي • تسميع صوتي • أذكار — في تطبيق واحد
         </p>
 
         <button
@@ -42,14 +62,24 @@ export default function Splash({ onEnter }: SplashProps) {
           دخول المصحف ✨
         </button>
 
-        <div className="mt-10 flex items-center justify-center gap-6 text-xs text-[var(--muted)] opacity-70">
-          <span>١١٤ سورة</span>
+        {/* تلميح دوّار */}
+        <p key={tip} className="fade-in-up text-xs text-[var(--muted)] mt-8 opacity-80 max-w-md mx-auto">
+          {TIPS[tip]}
+        </p>
+
+        <div className="mt-8 flex items-center justify-center gap-6 text-xs text-[var(--muted)] opacity-70">
+          <span>{toEasternNumbers(114)} سورة</span>
           <span className="text-[var(--gold)]">✦</span>
-          <span>٦٢٣٦ آية</span>
+          <span>{toEasternNumbers(6236)} آية</span>
           <span className="text-[var(--gold)]">✦</span>
-          <span>٣٠ جزءاً</span>
+          <span>{toEasternNumbers(30)} جزءاً</span>
         </div>
+
+        <p className="text-[10px] text-[var(--muted)] opacity-40 mt-6" dir="ltr">
+          v2.6.0 · صفر تتبّع · يعمل من جهازك
+        </p>
       </div>
     </div>
   );
 }
+

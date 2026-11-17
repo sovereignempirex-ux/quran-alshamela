@@ -9,6 +9,7 @@ import KhatmaPlanCard from "@/components/KhatmaPlanCard";
 import StatsCard from "@/components/StatsCard";
 import { surahData } from "@/lib/surahData";
 import type { StatsData } from "@/lib/stats";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface VerseOfDayData {
   surahNumber: number;
@@ -32,6 +33,16 @@ interface HomeSectionProps {
   onGoal: (g: number) => void;
 }
 
+// مفاتيح الأقسام القابلة للإخفاء
+const HIDEABLE = [
+  { id: "stats", label: "📊 الإحصاءات والورد اليومي" },
+  { id: "khatma", label: "🌟 متتبّع الختمة" },
+  { id: "plan", label: "📅 خطة الختمة" },
+  { id: "prayers", label: "🕌 مواقيت الصلاة" },
+  { id: "verse", label: "🌟 آية اليوم" },
+  { id: "quick", label: "⚡ فتح سريع" },
+] as const;
+
 export default function HomeSection({
   lastRead,
   onContinue,
@@ -46,6 +57,15 @@ export default function HomeSection({
   const [odayVerse, setOdayVerse] = useState<VerseOfDayData | null>(null);
   const [odayLoading, setOdayLoading] = useState(true);
   const [showTafsir, setShowTafsir] = useState(false);
+  const hiddenLS = useLocalStorage<string[]>("quranHomeHidden", []);
+  const hidden = hiddenLS.value;
+  const [customize, setCustomize] = useState(false);
+  const isVisible = (id: string) => !hidden.includes(id);
+  const toggleVisible = (id: string) => {
+    hiddenLS.setValue(
+      hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]
+    );
+  };
 
   useEffect(() => {
     let alive = true;
@@ -102,6 +122,35 @@ export default function HomeSection({
         </div>
       </div>
 
+      {/* زر تخصيص الصفحة الرئيسية */}
+      <div className="flex justify-end">
+        <button className="btn-ghost !py-1 !px-3 text-[11px]" onClick={() => setCustomize((v) => !v)}>
+          {customize ? "✕ إنهاء التخصيص" : "⚙ تخصيص الصفحة"}
+        </button>
+      </div>
+      {customize && (
+        <div className="card !p-4 fade-in">
+          <p className="text-xs text-[var(--muted)] mb-3">فعّل أو أخفِ ما لا تريده من الصفحة الرئيسية:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {HIDEABLE.map((h) => (
+              <label
+                key={h.id}
+                className="flex items-center gap-2 text-sm cursor-pointer rounded-xl px-3 py-2 border border-[var(--border)]"
+                style={isVisible(h.id) ? { borderColor: "var(--gold)" } : undefined}
+              >
+                <input
+                  type="checkbox"
+                  checked={isVisible(h.id)}
+                  onChange={() => toggleVisible(h.id)}
+                  className="accent-[var(--gold)]"
+                />
+                {h.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* متابعة القراءة */}
       {lastRead && (
         <div className="card card-hover flex items-center justify-between flex-wrap gap-4">
@@ -118,27 +167,30 @@ export default function HomeSection({
       )}
 
       {/* إحصاءات القراءة + الورد اليومي */}
-      <StatsCard stats={stats} goal={dailyGoal} onGoal={onGoal} />
+      {isVisible("stats") && <StatsCard stats={stats} goal={dailyGoal} onGoal={onGoal} />}
 
       {/* متتبّع ختمة القرآن */}
-      <KhatmaCard
-        completed={khatmaCompleted}
-        lastCompleted={
-          khatmaCompleted.length
-            ? surahData.find((s) => s.number === khatmaCompleted[khatmaCompleted.length - 1]) || null
-            : null
-        }
-        onReset={onResetKhatma}
-      />
+      {isVisible("khatma") && (
+        <KhatmaCard
+          completed={khatmaCompleted}
+          lastCompleted={
+            khatmaCompleted.length
+              ? surahData.find((s) => s.number === khatmaCompleted[khatmaCompleted.length - 1]) || null
+              : null
+          }
+          onReset={onResetKhatma}
+        />
+      )}
 
       {/* خطة الختمة: جدولة يومية تلقائية + تذكير */}
-      <KhatmaPlanCard stats={stats} onOpenSurah={onOpenSurah} />
+      {isVisible("plan") && <KhatmaPlanCard stats={stats} onOpenSurah={onOpenSurah} />}
 
       {/* مواقيت الصلاة */}
-      <PrayerTimesCard />
+      {isVisible("prayers") && <PrayerTimesCard />}
 
       {/* آية اليوم */}
-      <div className="card !p-6 md:!p-8 relative overflow-hidden">
+      {isVisible("verse") && (
+        <div className="card !p-6 md:!p-8 relative overflow-hidden">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="section-title !text-xl">🌟 آية اليوم</h3>
           {odayVerse && (
@@ -183,10 +235,12 @@ export default function HomeSection({
             تعذر تحميل آية اليوم
           </p>
         )}
-      </div>
+        </div>
+      )}
 
       {/* اختيار سريع */}
-      <div className="card !p-6">
+      {isVisible("quick") && (
+        <div className="card !p-6">
         <h3 className="section-title !text-xl mb-4">⚡ فتح سريع</h3>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {quickPick.map((s) => (
@@ -203,6 +257,7 @@ export default function HomeSection({
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

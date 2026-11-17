@@ -14,7 +14,8 @@ import { toEasternNumbers, formatTime } from "@/lib/utils";
 import { fetchTranslation, fetchTajweedVerses } from "@/lib/api";
 import { getReciter } from "@/lib/reciters";
 import { downloadSurahPackage, getOfflineAudio } from "@/lib/audioStore";
-import { shareAyahImage } from "@/lib/ayahImage";
+import { shareAyahImage, type AyahBg } from "@/lib/ayahImage";
+import { fetchTafsir } from "@/lib/api";
 import MushafPages from "@/components/MushafPages";
 import MemorizeQuizModal from "@/components/MemorizeQuizModal";
 import VoiceReciteModal from "@/components/VoiceReciteModal";
@@ -671,6 +672,31 @@ export default function Reader({
                           title="توليد صورة جميلة بالآية ومشاركتها مباشرة"
                         >
                           🖼 صورة
+                        </button>
+                        <button
+                          className="btn-ghost !px-3 !py-1 !text-xs"
+                          onClick={async () => {
+                            onToast("🖼 جاري تجهيز الصورة مع التفسير...");
+                            try {
+                              const t = await fetchTafsir(surah.number, n, "ar.muyassar");
+                              const r = await shareAyahImage(
+                                { surahName: surah.name, ayahNumber: n, text: ayah.text_uthmani },
+                                { bg: "dawn" as AyahBg, tafsir: t.text }
+                              );
+                              onToast(
+                                r === "shared"
+                                  ? "🖼 شُاركت الصورة مع التفسير ✓"
+                                  : r === "downloaded"
+                                  ? "🖼 نُزّلت الصورة مع التفسير — شاركها من صورك"
+                                  : "تعذر توليد الصورة"
+                              );
+                            } catch {
+                              onToast("تعذر جلب التفسير — تحقق من اتصالك وحاول مجدداً");
+                            }
+                          }}
+                          title="صورة الآية مع التفسير الميسّر أسفلها"
+                        >
+                          🖼 صورة + تفسير
                         </button>
                       </div>
                     </div>

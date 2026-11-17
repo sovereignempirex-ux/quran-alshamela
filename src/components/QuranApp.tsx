@@ -15,6 +15,7 @@ import { fetchSurahVerses } from "@/lib/api";
 import { defaultReciter } from "@/lib/reciters";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { autoThemeEffective } from "@/lib/utils";
+import { playClick, haptic } from "@/lib/feedback";
 import { addCompletedSurah, addVerses, emptyStats, type StatsData } from "@/lib/stats";
 import Splash from "@/components/Splash";
 import Header from "@/components/Header";
@@ -27,6 +28,7 @@ import FavoritesSection from "@/components/FavoritesSection";
 import OfflineSection from "@/components/OfflineSection";
 import TafsirModal from "@/components/TafsirModal";
 import DownloadsSection from "@/components/DownloadsSection";
+import AdhkarSection from "@/components/AdhkarSection";
 import KofiWidget from "@/components/KofiWidget";
 import AppUpdater from "@/components/AppUpdater";
 import { useWakeLock } from "@/hooks/useWakeLock";
@@ -46,6 +48,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showTajweed: false,
   keepAwake: true,
   comfort: false,
+  palette: "gold",
+  autoWarm: true,
+  clickSound: false,
+  haptics: false,
+  highContrast: false,
+  simpleFont: false,
 };
 
 export default function QuranApp() {
@@ -82,18 +90,42 @@ export default function QuranApp() {
   const [audioLoading, setAudioLoading] = useState(false);
 
   // == تطبيق الثيم وحجم الخط على الصفحة (مع حساب الوضع التلقائي حسب الوقت) ==
+  const [nowMin, setNowMin] = useState(0); // نبضة كل دقيقة للسطوع التلقائي
   useEffect(() => {
-    const mode = settingsLS.value.theme;
+    const id = setInterval(() => setNowMin((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const s = settingsLS.value;
+    const mode = s.theme;
     const effective =
       mode === "auto" ? (autoThemeEffective() ? "dark" : "light") : mode;
     document.documentElement.setAttribute("data-theme", effective);
-    document.documentElement.style.setProperty("--ayat-size", `${settingsLS.value.fontSize}px`);
+    document.documentElement.style.setProperty("--ayat-size", `${s.fontSize}px`);
     // وضع الراحة: ألوان دافئة ومسافات أوسع لراحة العين
+    // + السطوع التلقائي: يُفعَّل وضع الراحة تلقائياً بعد المغرب (8 مساءً) وقبل الفجر (5 صباحاً)
+    const nightHour = new Date().getHours();
+    const autoNight = s.autoWarm && (nightHour >= 20 || nightHour < 5);
     document.documentElement.setAttribute(
       "data-comfort",
-      settingsLS.value.comfort ? "on" : "off"
+      s.comfort || autoNight ? "on" : "off"
     );
-  }, [settingsLS.value.theme, settingsLS.value.fontSize, settingsLS.value.comfort]);
+    // الثيم اللوني الجاهز
+    document.documentElement.setAttribute("data-palette", s.palette || "gold");
+    // الوصولية
+    document.documentElement.setAttribute("data-contrast", s.highContrast ? "high" : "normal");
+    document.documentElement.setAttribute("data-simplefont", s.simpleFont ? "on" : "off");
+  }, [
+    settingsLS.value.theme,
+    settingsLS.value.fontSize,
+    settingsLS.value.comfort,
+    settingsLS.value.palette,
+    settingsLS.value.autoWarm,
+    settingsLS.value.highContrast,
+    settingsLS.value.simpleFont,
+    nowMin,
+  ]);
 
   // == مضاد السكون: منع إطفاء شاشة الهاتف أو اللابتوب أثناء استخدام التطبيق ==
   useWakeLock(settings.keepAwake, entered);
@@ -299,6 +331,20 @@ export default function QuranApp() {
     toastTimer.current = setTimeout(() => setToastMsg(null), 2200);
   };
 
+  // أصوات النقر + الاهتزاز اللمسي (تفويض عام للأزرار)
+  useEffect(() => {
+    if (!settings.clickSound && !settings.haptics) return;
+    const onClick = (e: MouseEvent) => {
+      const el = e.target as HTMLElement;
+      if (el?.closest?.("button, a.btn, a.btn-ghost")) {
+        if (settings.clickSound) playClick();
+        if (settings.haptics) haptic(10);
+      }
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [settings.clickSound, settings.haptics]);
+
   // اختصارات الكيبورد
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -307,11 +353,28 @@ export default function QuranApp() {
       if (e.code === "Space" && surah) {
         e.preventDefault();
         togglePlay();
+        return;
+      }
+      // J/K: السورة التالية/السابقة — T: تبديل الثيم
+      if ((e.key === "j" || e.key === "J") && surah) {
+        e.preventDefault();
+        if (surah.number < 114) openSurah(surah.number + 1);
+        else toast("هذه آخر سورة في المصحف");
+      } else if ((e.key === "k" || e.key === "K") && surah) {
+        e.preventDefault();
+        if (surah.number > 1) openSurah(surah.number - 1);
+        else toast("هذه أول سورة في المصحف");
+      } else if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        settingsLS.setValue((p) => ({
+          ...p,
+          theme: p.theme === "dark" ? "light" : p.theme === "light" ? "auto" : "dark",
+        }));
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [surah, togglePlay]);
+  }, [surah, togglePlay, openSurah, toast, settingsLS]);
 
   return (
     <>
@@ -404,6 +467,8 @@ export default function QuranApp() {
             )}
 
             {section === "search" && <SearchSection onOpenSurah={openSurah} />}
+
+            {section === "adhkar" && <AdhkarSection onToast={toast} />}
 
             {section === "favorites" && (
               <FavoritesSection
