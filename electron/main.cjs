@@ -8,7 +8,7 @@
 // userData ثم يعيد تشغيل التطبيق — دون تدخل المستخدم. عند عدم
 // الاتصال يسقط بأمان إلى النسخة المحزّنة ضمن التطبيق.
 // ============================================================
-const { app, BrowserWindow, Menu, shell } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
@@ -126,58 +126,112 @@ function downloadFile(url, dest, redirects) {
 }
 
 // ============ فحص وتطبيق التحديث (خلف الكواليس) ============
+// جلب أحدث إصدار من GitHub Releases (مع ملف web-app.zip)
+async function fetchLatestRelease() {
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    headers: {
+      "User-Agent": "Quran-AlShamela-Updater",
+      Accept: "application/vnd.github+json",
+    },
+  });
+  if (!res.ok) return null;
+  const rel = await res.json();
+  const tag = rel && rel.tag_name ? String(rel.tag_name) : "";
+  const asset = (rel.assets || []).find((a) => a && a.name === "web-app.zip");
+  if (!tag || !asset) return null;
+  return { tag, zipUrl: asset.browser_download_url };
+}
+
+// إرسال حدث مرحلة إلى الواجهة (زر التحديث داخل التطبيق)
+function sendUpdateEvent(stage) {
+  const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+  if (win) win.webContents.send("update:event", { stage });
+}
+
+// تنزيل + فك ضغط + تسجيل الإصدار + إعادة تشغيل التطبيق
+async function applyUpdateCore(tag, zipUrl) {
+  fs.mkdirSync(UPD_DIR, { recursive: true });
+  const zipPath = path.join(UPD_DIR, "update.zip");
+
+  sendUpdateEvent("downloading");
+  await downloadFile(zipUrl, zipPath, 0);
+
+  const target = path.join(UPD_DIR, "webapp-" + tag.replace(/[^0-9.]/g, ""));
+  const clean = (s) => String(s).replace(/'/g, "");
+  // فك الضغط عبر PowerShell (متوفر في كل ويندوز)
+  sendUpdateEvent("extracting");
+  const unzip = spawnSync(
+    "powershell",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-Command",
+      `Expand-Archive -Force -LiteralPath '${clean(zipPath)}' -DestinationPath '${clean(target)}'`,
+    ],
+    { timeout: 120000 }
+  );
+
+  if (unzip.status !== 0 || !fs.existsSync(path.join(target, "index.html"))) {
+    try { fs.unlinkSync(zipPath); } catch { /* تجاهل */ }
+    return false; // فشل فك الضغط — نحتفظ بالنسخة الحالية بأمان
+  }
+
+  // تسجيل الإصدار الجديد ثم إعادة تشغيل التطبيق
+  fs.writeFileSync(
+    VERSION_FILE,
+    JSON.stringify({ version: tag.replace(/^v/, ""), at: Date.now() })
+  );
+  try { fs.unlinkSync(zipPath); } catch { /* تجاهل */ }
+  app.relaunch();
+  app.exit(0);
+  return true;
+}
+
 async function checkForUpdates() {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      headers: {
-        "User-Agent": "Quran-AlShamela-Updater",
-        Accept: "application/vnd.github+json",
-      },
-    });
-    if (!res.ok) return;
-    const rel = await res.json();
-    const tag = rel && rel.tag_name ? String(rel.tag_name) : "";
-    if (!tag || !isNewer(tag, app.getVersion())) return; // نحن محدثون
+    const rel = await fetchLatestRelease();
+    if (!rel || !isNewer(rel.tag, app.getVersion())) return; // نحن محدثون
 
-    const asset = (rel.assets || []).find((a) => a && a.name === "web-app.zip");
-    if (!asset) return;
-
-    fs.mkdirSync(UPD_DIR, { recursive: true });
-    const zipPath = path.join(UPD_DIR, "update.zip");
-    await downloadFile(asset.browser_download_url || asset.url, zipPath, 0);
-
-    const target = path.join(UPD_DIR, "webapp-" + tag.replace(/[^0-9.]/g, ""));
-    const clean = (s) => String(s).replace(/'/g, "");
-    // فك الضغط عبر PowerShell (متوفر في كل ويندوز)
-    const unzip = spawnSync(
-      "powershell",
-      [
-        "-NoProfile",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        `Expand-Archive -Force -LiteralPath '${clean(zipPath)}' -DestinationPath '${clean(target)}'`,
-      ],
-      { timeout: 120000 }
-    );
-
-    if (unzip.status !== 0 || !fs.existsSync(path.join(target, "index.html"))) {
-      try { fs.unlinkSync(zipPath); } catch { /* تجاهل */ }
-      return; // فشل فك الضغط — نحتفظ بالنسخة الحالية بأمان
-    }
-
-    // تسجيل الإصدار الجديد ثم إعادة تشغيل التطبيق
-    fs.writeFileSync(
-      VERSION_FILE,
-      JSON.stringify({ version: tag.replace(/^v/, ""), at: Date.now() })
-    );
-    try { fs.unlinkSync(zipPath); } catch { /* تجاهل */ }
-    app.relaunch();
-    app.exit(0);
+    const ok = await applyUpdateCore(rel.tag, rel.zipUrl);
+    if (!ok) sendUpdateEvent("error");
   } catch {
     /* بلا اتصال — نبقى على النسخة الحالية بلا مشاكل */
   }
 }
+
+// ============ قنوات IPC لزر التحديث داخل التطبيق ============
+ipcMain.handle("update:version", () => app.getVersion());
+
+ipcMain.handle("update:check", async () => {
+  try {
+    const rel = await fetchLatestRelease();
+    if (!rel) return { available: false, latest: "" };
+    return {
+      available: isNewer(rel.tag, app.getVersion()),
+      latest: rel.tag.replace(/^v/, ""),
+    };
+  } catch {
+    return { available: false, latest: "" };
+  }
+});
+
+ipcMain.handle("update:apply", async () => {
+  try {
+    const rel = await fetchLatestRelease();
+    if (!rel || !isNewer(rel.tag, app.getVersion())) return true; // محدثون بالفعل
+    sendUpdateEvent("downloading");
+    await downloadFile(rel.zipUrl, path.join(UPD_DIR, "update.zip"), 0);
+    sendUpdateEvent("extracting");
+    const ok = await applyUpdateCore(rel.tag, rel.zipUrl);
+    if (!ok) sendUpdateEvent("error");
+    return ok;
+  } catch (e) {
+    console.error("update:apply فشل", e);
+    sendUpdateEvent("error");
+    return false;
+  }
+});
 
 async function createWindow() {
   const serveDir = servableDir();
@@ -197,6 +251,7 @@ async function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "preload.cjs"),
     },
   });
 

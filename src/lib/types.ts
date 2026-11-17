@@ -49,13 +49,13 @@ export interface LastRead {
   ayahNumber: number;
 }
 
-export type SectionId = "home" | "surahs" | "reader" | "search" | "favorites" | "downloads";
+export type SectionId = "home" | "surahs" | "reader" | "search" | "favorites" | "offline" | "downloads";
 
 export interface AppSettings {
   theme: "dark" | "light" | "auto"; // ليلي/نهاري/تلقائي حسب الوقت
   fontSize: number; // حجم خط الآيات px
   reciter: string; // معرف القارئ (server/name)
-  displayMode: "continuous" | "byline"; // عرض المصحف / آية بسطر
+  displayMode: "continuous" | "byline" | "mushaf"; // عرض المصحف / آية بسطر / صفحات المصحف
   autoNext: boolean; // الانتقال للسورة التالية تلقائياً
   speed: number; // سرعة التلاوة
   volume: number; // 0..1
@@ -63,6 +63,9 @@ export interface AppSettings {
   memorize: boolean; // وضع الحفظ (تسميع): إخفاء النص تدريجياً
   repeatAyah: boolean; // تكرار التلاوة: يعيد السورة من البداية عند نهايتها
   showTranslation: boolean; // ترجمة إنجليزية تحت الآية (عرض آية بسطر)
+  showTajweed: boolean; // تلوين أحكام التجويد (مد/غنّة/قلقلة/إخفاء...)
+  keepAwake: boolean; // مضاد للسكون: يمنع إطفاء الشاشة أثناء الاستخدام
+  comfort: boolean; // وضع الراحة: ألوان دافئة ومسافات أوسع لراحة العين
 }
 
 export interface TafsirSource {

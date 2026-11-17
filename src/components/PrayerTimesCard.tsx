@@ -54,6 +54,60 @@ export default function PrayerTimesCard() {
     return () => clearInterval(id);
   }, []);
 
+  // == تنبيه صامت عند دخول وقت الصلاة (Notification API) ==
+  const [notifyOn, setNotifyOn] = useState(false);
+  const [notifyNote, setNotifyNote] = useState("");
+  useEffect(() => {
+    setNotifyOn(localStorage.getItem("quranPrayerNotify") === "1");
+  }, []);
+  const toggleNotify = async () => {
+    if (!notifyOn) {
+      if (typeof Notification === "undefined") {
+        setNotifyNote("⚠ التنبيهات غير مدعومة على جهازك");
+        return;
+      }
+      if (Notification.permission !== "granted") {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") {
+          setNotifyNote("⚠ رفضت صلاحية التنبيهات");
+          return;
+        }
+      }
+      setNotifyNote("✓ سنُعلِمك بصمت عند دخول كل وقت صلاة");
+    } else {
+      setNotifyNote("");
+    }
+    const next = !notifyOn;
+    setNotifyOn(next);
+    localStorage.setItem("quranPrayerNotify", next ? "1" : "0");
+  };
+
+  // فحص كل نبضة: هل دخل وقت صلاة الآن؟
+  useEffect(() => {
+    if (!notifyOn || !data || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    for (const k of PRAYER_ORDER) {
+      if (k === "Sunrise") continue; // الشروق ليس وقت صلاة
+      const [h, m] = data.timings[k].slice(0, 5).split(":").map(Number);
+      const at = new Date();
+      at.setHours(h, m, 0, 0);
+      const msSince = now.getTime() - at.getTime();
+      if (msSince >= 0 && msSince < 60000) {
+        try {
+          const n = new Notification(`🕌 حان الآن وقت صلاة ${PRAYER_AR[k]}`, {
+            body: "حافظ على صلاتك — الله أكبر",
+            silent: true,
+            tag: `prayer-${k}`,
+          });
+          setTimeout(() => {
+            try { n.close(); } catch { /* تجاهل */ }
+          }, 15000);
+        } catch {
+          /* تجاهل */
+        }
+      }
+    }
+  }, [now, data, notifyOn]);
+
   // الصلاة القادمة والوقت المتبقي
   const next = useMemo(() => {
     if (!data) return null;
@@ -122,8 +176,22 @@ export default function PrayerTimesCard() {
           <span className="text-[11px] text-[var(--muted)]">
             🕐 طريقة أم القرى
           </span>
+          <button
+            onClick={toggleNotify}
+            className={`px-3 py-1 rounded-full text-[11px] border transition-all ${
+              notifyOn
+                ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+                : "border-[var(--border)] text-[var(--muted)]"
+            }`}
+            title="تنبيه صامت عند دخول وقت كل صلاة"
+          >
+            {notifyOn ? "🔔 التنبيه: مفعّل" : "🔔 تنبيه صامت"}
+          </button>
         </div>
       </div>
+      {notifyNote && (
+        <p className="text-[11px] text-[var(--muted)] mb-3 text-center">{notifyNote}</p>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-8">

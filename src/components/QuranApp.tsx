@@ -24,10 +24,12 @@ import Reader from "@/components/Reader";
 import AudioBar from "@/components/AudioBar";
 import SearchSection from "@/components/SearchSection";
 import FavoritesSection from "@/components/FavoritesSection";
+import OfflineSection from "@/components/OfflineSection";
 import TafsirModal from "@/components/TafsirModal";
 import DownloadsSection from "@/components/DownloadsSection";
 import KofiWidget from "@/components/KofiWidget";
 import AppUpdater from "@/components/AppUpdater";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -41,6 +43,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   memorize: false,
   repeatAyah: false,
   showTranslation: false,
+  showTajweed: false,
+  keepAwake: true,
+  comfort: false,
 };
 
 export default function QuranApp() {
@@ -83,7 +88,15 @@ export default function QuranApp() {
       mode === "auto" ? (autoThemeEffective() ? "dark" : "light") : mode;
     document.documentElement.setAttribute("data-theme", effective);
     document.documentElement.style.setProperty("--ayat-size", `${settingsLS.value.fontSize}px`);
-  }, [settingsLS.value.theme, settingsLS.value.fontSize]);
+    // وضع الراحة: ألوان دافئة ومسافات أوسع لراحة العين
+    document.documentElement.setAttribute(
+      "data-comfort",
+      settingsLS.value.comfort ? "on" : "off"
+    );
+  }, [settingsLS.value.theme, settingsLS.value.fontSize, settingsLS.value.comfort]);
+
+  // == مضاد السكون: منع إطفاء شاشة الهاتف أو اللابتوب أثناء استخدام التطبيق ==
+  useWakeLock(settings.keepAwake, entered);
 
   // نبضة كل 5 دقائق لتحديث الوضع التلقائي حسب الوقت
   useEffect(() => {
@@ -240,6 +253,7 @@ export default function QuranApp() {
   const resetKhatma = () => khatmaLS.setValue([]);
 
   // == إحصاءات القراءة ==
+  const [offlineTick, setOfflineTick] = useState(0);
   const recordVerse = useCallback(
     () => statsLS.setValue((prev) => addVerses(prev, 1)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -317,6 +331,7 @@ export default function QuranApp() {
             onContinue={(lr) => openSurah(lr.surahNumber, lr.ayahNumber)}
             showDownloads={isWebClient}
             showDonate={isWebClient}
+            onToast={toast}
           />
 
           <main className="max-w-6xl mx-auto px-4 pt-6 pb-28">
@@ -402,6 +417,15 @@ export default function QuranApp() {
               />
             )}
 
+            {section === "offline" && (
+              <OfflineSection
+                reciter={settings.reciter}
+                onSettings={settingsLS.setValue}
+                onToast={toast}
+                onAudioChanged={() => setOfflineTick((t) => t + 1)}
+              />
+            )}
+
             {section === "downloads" && <DownloadsSection />}
           </main>
 
@@ -442,6 +466,7 @@ export default function QuranApp() {
               volume={settingsLS.value.volume}
               autoNext={settingsLS.value.autoNext}
               repeatAyah={settingsLS.value.repeatAyah}
+              offlineTick={offlineTick}
               currentTime={currentTime}
               duration={duration}
               onSettings={settingsLS.setValue}

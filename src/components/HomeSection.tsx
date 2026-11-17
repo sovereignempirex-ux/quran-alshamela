@@ -5,6 +5,7 @@ import type { LastRead, SectionId } from "@/lib/types";
 import { fetchVerseOfDay } from "@/lib/api";
 import PrayerTimesCard from "@/components/PrayerTimesCard";
 import KhatmaCard from "@/components/KhatmaCard";
+import KhatmaPlanCard from "@/components/KhatmaPlanCard";
 import StatsCard from "@/components/StatsCard";
 import { surahData } from "@/lib/surahData";
 import type { StatsData } from "@/lib/stats";
@@ -129,6 +130,9 @@ export default function HomeSection({
         }
         onReset={onResetKhatma}
       />
+
+      {/* خطة الختمة: جدولة يومية تلقائية + تذكير */}
+      <KhatmaPlanCard stats={stats} onOpenSurah={onOpenSurah} />
 
       {/* مواقيت الصلاة */}
       <PrayerTimesCard />

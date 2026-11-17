@@ -170,7 +170,6 @@ export async function fetchTafsir(
 }
 
 // ==================== الترجمة الإنجليزية ====================
-
 const TRANS_CACHE_KEY = "quranTransCache_v1";
 
 export async function fetchTranslation(
@@ -285,4 +284,113 @@ export async function fetchVerseOfDay(): Promise<VerseOfDayData> {
     tafsir: tafsir?.text || null,
     type: uthmani.surah.revelationType === "Meccan" ? "مكية" : "مدنية",
   };
+}
+
+// ==================== تلوين التجويد ====================
+// quran.com يوفر نص عثماني بعلامات التجويد (وسوم <tajweed class=...>)
+const TAJWEED_CACHE_KEY = "quranTajweedCache_v1";
+type TajweedCache = Record<string, Record<number, string>>; // سورة → آية → HTML
+
+// تنظيف نص التجويد: نبقي وسوم tajweed فقط (تحويلها لعناصر ملوّنة CSS)
+function sanitizeTajweed(raw: string): string {
+  return String(raw)
+    .replace(/<tajweed\s+class=([a-z_0-9]+)>/g, '<taj class="tj-$1">')
+    .replace(/<tajweed\s+class="([a-z_0-9]+)">/g, '<taj class="tj-$1">')
+    .replace(/<\/tajweed>/g, "</taj>")
+    .replace(/<(?!\/?taj\b)[^>]*>/g, ""); // إزالة أي وسوم أخرى للسلامة
+}
+
+export async function fetchTajweedVerses(
+  surahNumber: number
+): Promise<Record<number, string>> {
+  const cache = readCache<TajweedCache>(TAJWEED_CACHE_KEY);
+  const cached = cache[surahNumber];
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://api.quran.com/api/v4/quran/verses/uthmani_tajweed?chapter_number=${surahNumber}`
+  );
+  if (!res.ok) throw new Error("تعذر جلب نص التجويد");
+  const data = await res.json();
+  const out: Record<number, string> = {};
+  for (const v of data.verses || []) {
+    const n = Number(v.verse_key.split(":")[1]);
+    out[n] = sanitizeTajweed(v.text_uthmani_tajweed || "");
+  }
+  cache[surahNumber] = out;
+  writeCache(TAJWEED_CACHE_KEY, cache);
+  return out;
+}
+
+// ==================== صفحات المصحف (604 صفحة) ====================
+const PAGE_CACHE_KEY = "quranPageCache_v1";
+type PageCache = Record<string, { verses: Ayah[]; juz: number }>;
+
+export async function fetchPageVerses(page: number): Promise<{
+  verses: Ayah[];
+  juz: number;
+}> {
+  const cache = readCache<PageCache>(PAGE_CACHE_KEY);
+  const cached = cache[page];
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://api.quran.com/api/v4/verses/by_page/${page}?fields=text_uthmani&per_page=50`
+  );
+  if (!res.ok) throw new Error("تعذر جلب صفحة المصحف");
+  const data = await res.json();
+  const verses: Ayah[] = (data.verses || []).map(
+    (v: { id: number; verse_key: string; text_uthmani: string }) => ({
+      id: v.id,
+      verse_key: v.verse_key,
+      text_uthmani: v.text_uthmani,
+    })
+  );
+  const juz = Number(data.verses?.[0]?.juz_number || 0);
+  const entry = { verses, juz };
+  cache[page] = entry;
+  writeCache(PAGE_CACHE_KEY, cache);
+  return entry;
+}
+
+// صفحة بداية ونهاية السورة في المصحف
+const CHAPTER_PAGES_KEY = "quranChapterPages_v1";
+type ChapterPages = Record<string, [number, number]>;
+
+export async function fetchSurahPages(
+  surahNumber: number
+): Promise<[number, number]> {
+  const cache = readCache<ChapterPages>(CHAPTER_PAGES_KEY);
+  const cached = cache[surahNumber];
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://api.quran.com/api/v4/chapters/${surahNumber}?language=ar`
+  );
+  if (!res.ok) throw new Error("تعذر جلب بيانات السورة");
+  const data = await res.json();
+  const pages: [number, number] = [
+    Number(data.chapter?.pages?.[0] || 1),
+    Number(data.chapter?.pages?.[1] || 604),
+  ];
+  cache[surahNumber] = pages;
+  writeCache(CHAPTER_PAGES_KEY, cache);
+  return pages;
+}
+
+// ==================== تفسير الميسّر لسورة كاملة (طلب واحد — للأوفلاين) ====================
+// يخزّن كل آية في كاش التفسير نفسه الذي تقرأ منه نافذة التفسير
+export async function fetchSurahMuyassar(surahNumber: number): Promise<number> {
+  const res = await fetch(
+    `https://api.alquran.cloud/v1/surah/${surahNumber}/ar.muyassar`
+  );
+  if (!res.ok) throw new Error("تعذر جلب التفسير الميسّر");
+  const data = await res.json();
+  const ayahs = data?.data?.ayahs || [];
+  const cache = readCache<TafsirCache>(TAFSIR_CACHE_KEY);
+  for (const a of ayahs) {
+    if (a.text) cache[`muyassar:${surahNumber}:${a.numberInSurah}`] = String(a.text);
+  }
+  writeCache(TAFSIR_CACHE_KEY, cache);
+  return ayahs.length;
 }

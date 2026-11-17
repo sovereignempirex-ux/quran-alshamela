@@ -5,12 +5,15 @@ import type { AppSettings, LastRead, SectionId } from "@/lib/types";
 import { gregorianToday, hijriToday, toEasternNumbers } from "@/lib/utils";
 import { reciters } from "@/lib/reciters";
 import { KO_FI_URL } from "@/lib/kofi";
+import UpdateButton from "@/components/UpdateButton";
+import AiAssistantModal from "@/components/AiAssistantModal";
 
 const BASE_TABS: { id: SectionId; label: string; icon: string }[] = [
   { id: "home", label: "الرئيسية", icon: "🏠" },
   { id: "surahs", label: "السور", icon: "📖" },
   { id: "search", label: "البحث", icon: "🔍" },
   { id: "favorites", label: "المفضلة", icon: "❤️" },
+  { id: "offline", label: "بدون نت", icon: "📴" },
 ];
 
 const DOWNLOAD_TAB: { id: SectionId; label: string; icon: string } = {
@@ -28,6 +31,7 @@ interface HeaderProps {
   onContinue: (lr: LastRead) => void;
   showDownloads?: boolean;
   showDonate?: boolean;
+  onToast?: (m: string) => void;
 }
 
 export default function Header({
@@ -39,8 +43,10 @@ export default function Header({
   onContinue,
   showDownloads = false,
   showDonate = false,
+  onToast = () => undefined,
 }: HeaderProps) {
   const [showSettings, setShowSettings] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [dates, setDates] = useState({ g: "", h: "" });
   const TABS = showDownloads ? [...BASE_TABS, DOWNLOAD_TAB] : BASE_TABS;
 
@@ -78,6 +84,18 @@ export default function Header({
                 ⏮ متابعة: {lastRead.surahName} {lastRead.ayahNumber}
               </button>
             )}
+
+            {/* زر المساعد الذكي — في كل المنصات */}
+            <button
+              className="btn-ghost !px-3 !py-1.5"
+              title="🤖 المساعد الذكي القرآني — مجاني"
+              onClick={() => setAiOpen(true)}
+            >
+              🤖
+            </button>
+
+            {/* زر التحديث — يظهر داخل EXE و APK فقط (وليس الويب) */}
+            <UpdateButton onToast={onToast} />
 
             {/* الثيم والإعدادات */}
             {showDonate && (
@@ -146,6 +164,9 @@ export default function Header({
           </div>
         </>
       )}
+
+      {/* المساعد الذكي القرآني */}
+      {aiOpen && <AiAssistantModal onClose={() => setAiOpen(false)} />}
     </header>
   );
 }
@@ -318,6 +339,47 @@ function SettingsPanelInner({
         </button>
       </Row>
 
+      <Row label="🎨 تلوين التجويد">
+        <button
+          onClick={() => onSettings((p) => ({ ...p, showTajweed: !p.showTajweed }))}
+          className={`px-4 py-1.5 rounded-full text-xs border transition-all ${
+            settings.showTajweed
+              ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+              : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          {settings.showTajweed ? "🎨 مفعّل" : "معطّل"}
+        </button>
+      </Row>
+
+      <Row label="🚫 مضاد السكون (شاشة لا تنام)">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onSettings((p) => ({ ...p, keepAwake: !p.keepAwake }))}
+            className={`px-4 py-1.5 rounded-full text-xs border transition-all ${
+              settings.keepAwake
+                ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+                : "border-[var(--border)] text-[var(--muted)]"
+            }`}
+          >
+            {settings.keepAwake ? "💡 يعمل" : "معطّل"}
+          </button>
+        </div>
+      </Row>
+
+      <Row label="🛋 وضع الراحة (راحة العين)">
+        <button
+          onClick={() => onSettings((p) => ({ ...p, comfort: !p.comfort }))}
+          className={`px-4 py-1.5 rounded-full text-xs border transition-all ${
+            settings.comfort
+              ? "bg-[var(--gold)] text-[var(--bg)] border-[var(--gold)]"
+              : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          {settings.comfort ? "☕ مفعّل" : "معطّل"}
+        </button>
+      </Row>
+
       <Row label="ترجمة إنجليزية تحت الآية">
         <button
           onClick={() => onSettings((p) => ({ ...p, showTranslation: !p.showTranslation }))}
@@ -332,11 +394,12 @@ function SettingsPanelInner({
       </Row>
 
       <Row label="طريقة العرض">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(
             [
               { id: "continuous", label: "مُصْحَف متصل" },
               { id: "byline", label: "آية بسطر" },
+              { id: "mushaf", label: "📕 صفحات (604)" },
             ] as const
           ).map((m) => (
             <button

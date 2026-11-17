@@ -5,6 +5,7 @@ import type { AppSettings } from "@/lib/types";
 import { reciters, getReciter } from "@/lib/reciters";
 import { formatTime, pad3 } from "@/lib/utils";
 import { surahData } from "@/lib/surahData";
+import { getOfflineAudio } from "@/lib/audioStore";
 
 interface AudioBarProps {
   show: boolean;
@@ -16,6 +17,7 @@ interface AudioBarProps {
   volume: number;
   autoNext: boolean;
   repeatAyah: boolean;
+  offlineTick: number; // يتغير عند تنزيل/حذف تلاوة — لإعادة فحص المصدر المحلي
   currentTime: number;
   duration: number;
   onSettings: (s: AppSettings | ((p: AppSettings) => AppSettings)) => void;
@@ -40,6 +42,7 @@ export default function AudioBar({
   volume,
   autoNext,
   repeatAyah,
+  offlineTick,
   currentTime,
   duration,
   onSettings,
@@ -55,22 +58,93 @@ export default function AudioBar({
   const reciterInfo = getReciter(reciter);
   const srcRef = useRef("");
   const [error, setError] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
-  // تجهيز المصدر عند تغير السورة أو القارئ
+  // == مؤقت النوم: يوقف التلاوة بعد المدة المحددة ==
+  const SLEEP_OPTIONS = [0, 10, 20, 30, 60] as const; // بالدقائق، 0 = بدون
+  const [sleepIdx, setSleepIdx] = useState(0);
+  const [sleepLeft, setSleepLeft] = useState(0); // ثوانٍ متبقية
+  const [sleepOverlay, setSleepOverlay] = useState(false); // شاشة النوم (سوداء موفر للطاقة)
+
+  useEffect(() => {
+    if (sleepLeft <= 0) return;
+    const id = setInterval(() => {
+      setSleepLeft((s) => {
+        if (s <= 1) {
+          // انتهى المؤقت: أوقف التلاوة
+          const audio = audioRef.current;
+          if (audio) audio.pause();
+          onToast("⏱ انتهى مؤقت النوم — أُوقفت التلاوة. تصبح على خير 🌙");
+          setSleepOverlay(false);
+          setSleepIdx(0);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sleepLeft > 0]);
+
+  const cycleSleep = () => {
+    const next = (sleepIdx + 1) % SLEEP_OPTIONS.length;
+    setSleepIdx(next);
+    const mins = SLEEP_OPTIONS[next];
+    if (mins === 0) {
+      setSleepLeft(0);
+      onToast("⏱ أُلغي مؤقت النوم");
+    } else {
+      setSleepLeft(mins * 60);
+      onToast(`⏱ سيقف الصوت بعد ${mins} دقيقة`);
+    }
+  };
+
+  const sleepLabel = () => {
+    const m = SLEEP_OPTIONS[sleepIdx];
+    if (m === 0) return "⏱ نوم";
+    const mm = Math.floor(sleepLeft / 60);
+    const ss = sleepLeft % 60;
+    return `🌙 ${mm}:${String(ss).padStart(2, "0")}`;
+  };
+
+  // تجهيز المصدر عند تغير السورة أو القارئ — الأوفلاين أولاً:
+  // إن كانت التلاوة محفوظة على الجهاز نشغّلها من IndexedDB دون أي إنترنت
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const url = `${reciterInfo.server}/${pad3(surahNumber)}.mp3`;
-    if (srcRef.current === url) return;
-    srcRef.current = url;
-    audio.src = url;
-    audio.playbackRate = speed;
-    audio.volume = volume;
-    setError(false);
-    onAudioLoading(true);
-    audio.load();
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    const applySrc = (url: string, offline: boolean) => {
+      if (srcRef.current === url) return;
+      srcRef.current = url;
+      audio.src = url;
+      audio.playbackRate = speed;
+      audio.volume = volume;
+      setError(false);
+      onAudioLoading(true);
+      audio.load();
+    };
+
+    (async () => {
+      const blob = await getOfflineAudio(reciter, surahNumber);
+      if (cancelled) return;
+      if (blob) {
+        objectUrl = URL.createObjectURL(blob);
+        setIsOffline(true);
+        applySrc(objectUrl, true);
+      } else {
+        setIsOffline(false);
+        applySrc(`${reciterInfo.server}/${pad3(surahNumber)}.mp3`, false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surahNumber, reciterInfo.server]);
+  }, [surahNumber, reciterInfo.server, reciter, offlineTick]);
 
   // الربط بالأحداث
   useEffect(() => {
@@ -215,6 +289,24 @@ export default function AudioBar({
               {repeatAyah ? "🔂 التكرار: مفعّل" : "🔂 التكرار: معطل"}
             </button>
 
+            {/* مؤقت النوم + شاشة النوم */}
+            <button
+              className="btn-ghost !py-1.5 !px-3 text-xs"
+              onClick={cycleSleep}
+              title="مؤقت النوم: يوقف التلاوة تلقائياً بعد المدة المحددة"
+            >
+              {sleepLabel()}
+            </button>
+            {playing && (
+              <button
+                className="btn-ghost !py-1.5 !px-3 text-xs"
+                onClick={() => setSleepOverlay(true)}
+                title="شاشة النوم: شاشة سوداء توفر البطارية أثناء الاستماع قبل النوم"
+              >
+                🌙 وضع النوم
+              </button>
+            )}
+
             {/* تنزيل */}
             <a
               className="btn-ghost !py-1.5 !px-3 text-xs"
@@ -237,6 +329,14 @@ export default function AudioBar({
             <div className="flex items-center justify-between mb-1.5 gap-2">
               <span className="text-xs font-bold text-[var(--gold)] truncate">
                 🎧 سورة {surahName}
+                {isOffline && (
+                  <span
+                    className="meta-tag mr-2 !py-0 !px-2 !text-[10px]"
+                    title="تعمل من التلاوة المحفوظة على جهازك — بدون إنترنت"
+                  >
+                    📴 بدون نت
+                  </span>
+                )}
                 {error && <span className="text-[var(--danger)] mr-2">⚠ تعذر تحميل الصوت</span>}
               </span>
               <span className="text-[11px] text-[var(--muted)] shrink-0" dir="ltr">
@@ -262,6 +362,47 @@ export default function AudioBar({
           </button>
         </div>
       </div>
+
+      {/* == شاشة النوم: سوداء موفر للطاقة — تلاوة تعمل والشاشة بالكاد تنير == */}
+      {sleepOverlay && (
+        <div
+          className="sleep-overlay"
+          onClick={() => setSleepOverlay(false)}
+          title="اضغط للخروج من وضع النوم"
+        >
+          <div className="text-center select-none" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[var(--muted)] text-sm mb-2 opacity-50">🎧 تلاوة تعمل الآن</p>
+            <p className="font-headings text-xl text-[#5a5f6b] mb-8">سورة {surahName}</p>
+            <button
+              className="rounded-full mx-auto mb-8 cursor-pointer"
+              style={{
+                width: 74,
+                height: 74,
+                border: "1.5px solid #3a3f4b",
+                color: "#8a8f98",
+                fontSize: 28,
+                background: "#12151c",
+              }}
+              onClick={() => {
+                const audio = audioRef.current;
+                if (!audio) return;
+                if (playing) audio.pause();
+                else audio.play().catch(() => undefined);
+              }}
+            >
+              {playing ? "⏸" : "▶"}
+            </button>
+            {sleepLeft > 0 && (
+              <p className="text-[#5a5f6b] text-sm" dir="ltr">
+                ⏱ {Math.floor(sleepLeft / 60)}:{String(sleepLeft % 60).padStart(2, "0")}
+              </p>
+            )}
+            <p className="text-[#3a3f4b] text-[11px] mt-10 opacity-60">
+              🌙 وضع النوم — شاشة داكنة توفر البطارية · اضغط في أي مكان للخروج
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

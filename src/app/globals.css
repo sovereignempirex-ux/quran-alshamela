@@ -34,6 +34,28 @@
   --shadow: 0 10px 30px rgba(29, 37, 55, 0.08);
 }
 
+/* ===== وضع الراحة (راحة العين) — ألوان دافئة ومسافات أوسع ===== */
+/* يتفوق على الثيم الفاتح عمداً: العين ترتاح للدفء الداكن في الجلوس الطويل */
+html[data-comfort="on"] {
+  --bg: #2a2118;
+  --bg-soft: #332a1e;
+  --panel: rgba(255, 240, 200, 0.06);
+  --panel-solid: #3a2f21;
+  --border: rgba(255, 220, 160, 0.16);
+  --gold: #e8c56a;
+  --gold-soft: rgba(232, 197, 106, 0.14);
+  --text: #f3e9d2;
+  --muted: rgba(243, 233, 210, 0.62);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+html[data-comfort="on"] .ayah-text {
+  line-height: 3;
+  letter-spacing: 0.02em;
+}
+html[data-comfort="on"] body::before {
+  opacity: 0.25;
+}
+
 html {
   scroll-behavior: smooth;
   /* حواف الشاشات الحديثة (نحت فيديو للأندرويد الحديثة) */
@@ -188,6 +210,56 @@ body::before {
   color: var(--gold);
   font-size: 0.95em;
   opacity: 0.85;
+}
+
+/* ===== تلوين التجويد ===== */
+.tj-ham_wasl,
+.tj-slnt,
+.tj-silent,
+.tj-laam_shamsiyah,
+.tj-laam_sakina {
+  color: #8b93a5;
+}
+.tj-madda_normal,
+.tj-madda_permissible {
+  color: #4d7fff;
+}
+.tj-madda_necessary,
+.tj-madda_obligatory {
+  color: #2a5cff;
+  text-shadow: 0 0 6px rgba(77, 127, 255, 0.35);
+}
+.tj-qlq {
+  color: #e05d5d;
+}
+.tj-ghunnah,
+.tj-idgham_ghunnah,
+.tj-idgham_w_ghunnah,
+.tj-idgham_n_ghunnah,
+.tj-idgham_shafawi,
+.tj-ikhfa_shafawi {
+  color: #27b39a;
+}
+.tj-ikhfa {
+  color: #a356d3;
+}
+
+/* ===== شاشة النوم — سوداء موفر للطاقة ===== */
+.sleep-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 990;
+  background: #050608;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* نبضة أيقونة المايك أثناء التسميع */
+@keyframes recPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.45); }
+  50% { box-shadow: 0 0 0 14px rgba(229, 72, 77, 0); }
 }
 
 .ayah-block.active {

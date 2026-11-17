@@ -11,7 +11,13 @@ import type {
   SurahMeta,
 } from "@/lib/types";
 import { toEasternNumbers, formatTime } from "@/lib/utils";
-import { fetchTranslation } from "@/lib/api";
+import { fetchTranslation, fetchTajweedVerses } from "@/lib/api";
+import { getReciter } from "@/lib/reciters";
+import { downloadSurahPackage, getOfflineAudio } from "@/lib/audioStore";
+import { shareAyahImage } from "@/lib/ayahImage";
+import MushafPages from "@/components/MushafPages";
+import MemorizeQuizModal from "@/components/MemorizeQuizModal";
+import VoiceReciteModal from "@/components/VoiceReciteModal";
 
 interface ReaderProps {
   surah: SurahMeta | null;
@@ -102,6 +108,67 @@ export default function Reader({
       alive = false;
     };
   }, [surah, settings.showTranslation]);
+
+  // == تلوين التجويد (نص عثماني ملوّن أحكامه) ==
+  const [tajweed, setTajweed] = useState<Record<number, string> | null>(null);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [reciteOpen, setReciteOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [isSurahOffline, setIsSurahOffline] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (!settings.showTajweed || !surah) {
+      setTajweed(null);
+      return;
+    }
+    fetchTajweedVerses(surah.number)
+      .then((t) => {
+        if (alive) setTajweed(t);
+      })
+      .catch(() => {
+        if (alive) setTajweed(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [surah, settings.showTajweed]);
+
+  // هل التلاوة محفوظة محلياً؟ (شارة بدون نت في رأس القارئ)
+  useEffect(() => {
+    let alive = true;
+    if (!surah) return;
+    getOfflineAudio(settings.reciter, surah.number).then((b) => {
+      if (alive) setIsSurahOffline(!!b);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [surah, settings.reciter, saving]);
+
+  // حفظ السورة كاملة (نص + تلاوة + تفسير الميسّر + ترجمة) — بزر واحد
+  const saveSurahPackage = async () => {
+    if (!surah || saving) return;
+    setSaving(true);
+    const reciterInfo = getReciter(settings.reciter);
+    onToast(`💾 جاري حفظ سورة ${surah.name} كاملة على جهازك...`);
+    try {
+      await downloadSurahPackage(
+        settings.reciter,
+        reciterInfo.server,
+        surah.number,
+        {
+          fetchText: () => import("@/lib/api").then((m) => m.fetchSurahVerses(surah.number)),
+          fetchTafsir: () => import("@/lib/api").then((m) => m.fetchSurahMuyassar(surah.number)),
+          fetchTranslation: () => fetchTranslation(surah.number),
+        }
+      );
+      onToast(`✅ حُفظت سورة ${surah.name} كاملة — تعمل الآن بدون إنترنت`);
+    } catch {
+      onToast("⚠ تعذر الحفظ الكامل — تحقق من اتصالك وحاول مجدداً");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // == تحديث 2.2: شريط تقدم القراءة + زر العودة للأعلى + تنقّل بلوحة المفاتيح ==
   const [progress, setProgress] = useState(0);
@@ -263,6 +330,22 @@ export default function Reader({
 
   const bismillah = surah.number !== 9 && surah.number !== 1;
   const continuous = settings.displayMode === "continuous";
+  const mushafMode = settings.displayMode === "mushaf";
+
+  // محتوى نص الآية — بالتجويد الملوّن إن فعّل المستخدم ذلك
+  const ayahContent = (ayah: Ayah) => {
+    const n = Number(ayah.verse_key.split(":")[1]);
+    if (settings.showTajweed && tajweed?.[n]) {
+      return (
+        <span
+          dangerouslySetInnerHTML={{
+            __html: tajweed[n] + ` <span class="ayah-seal">${toEasternNumbers(n)}</span>`,
+          }}
+        />
+      );
+    }
+    return <>{ayah.text_uthmani}<span className="ayah-seal">{toEasternNumbers(n)}</span></>;
+  };
 
   const currentMenuAyah = menu ? ayahs[menu.ayahIndex] : null;
   const menuAyahNumber = currentMenuAyah
@@ -307,17 +390,65 @@ export default function Reader({
             </button>
           </div>
 
-          {/* نمط العرض */}
+          {/* نمط العرض: متصل / آية بسطر / صفحات المصحف */}
           <button
             className="btn-ghost !py-1.5 text-xs"
-            onClick={() =>
-              onSettings((p) => ({
-                ...p,
-                displayMode: p.displayMode === "continuous" ? "byline" : "continuous",
-              }))
-            }
+            onClick={() => {
+              const order = ["continuous", "byline", "mushaf"] as const;
+              const next = order[(order.indexOf(settings.displayMode) + 1) % order.length];
+              onSettings((p) => ({ ...p, displayMode: next }));
+              if (next === "mushaf") onToast("📕 وضع صفحات المصحف — 604 صفحات كالمصحف المطبوع");
+            }}
           >
-            {continuous ? "📜 عرض: مصحف متصل" : "📄 عرض: آية بسطر"}
+            {settings.displayMode === "continuous"
+              ? "📜 عرض: مصحف متصل"
+              : settings.displayMode === "byline"
+              ? "📄 عرض: آية بسطر"
+              : "📕 عرض: صفحات المصحف"}
+          </button>
+
+          {/* تلوين التجويد */}
+          <button
+            className={`!py-1.5 text-xs ${settings.showTajweed ? "btn" : "btn-ghost"}`}
+            title="تلوين أحكام التجويد: المد أزرق، الغنّة أخضر، القلقلة أحمر..."
+            onClick={() => {
+              onSettings((p) => ({ ...p, showTajweed: !p.showTajweed }));
+              onToast(!settings.showTajweed ? "🎨 تلوين التجويد مُفعَّل" : "أُوقف تلوين التجويد");
+            }}
+          >
+            {settings.showTajweed ? "🎨 التجويد: مفعّل" : "🎨 تلوين التجويد"}
+          </button>
+
+          {/* اختبار الحفظ */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="اختبر حفظك: تظهر أول كلمة من الآية وأنت تكملها"
+            onClick={() => setQuizOpen(true)}
+          >
+            🎯 اختبار الحفظ
+          </button>
+
+          {/* التسميع الصوتي — تفريغ محلي بنموذج مفتوح المصدر */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="اسمِع حفظك بالمايك — يقيّم تلاوتك كلمة كلمة على جهازك بلا سيرفر"
+            onClick={() => setReciteOpen(true)}
+          >
+            🎤 تسميع صوتي
+          </button>
+
+          {/* حفظ السورة كاملة بدون نت (نص + تلاوة + تفسير + ترجمة) */}
+          <button
+            className={`!py-1.5 text-xs ${isSurahOffline ? "btn" : "btn-ghost"}`}
+            title="حفظ السورة كاملة على جهازك: النص + التلاوة + التفسير الميسّر + الترجمة — تعمل بعدها بدون إنترنت"
+            onClick={saveSurahPackage}
+            disabled={saving}
+          >
+            {saving
+              ? "⏳ جاري الحفظ..."
+              : isSurahOffline
+              ? "📴 محفوظة بدون نت"
+              : "💾 حفظ بدون نت"}
           </button>
 
           {/* وضع الحفظ (تسميع): إخفاء النص تدريجياً */}
@@ -402,84 +533,85 @@ export default function Reader({
       </div>
 
       {/* المحتوى */}
-      <div className="card !rounded-3xl !p-6 md:!p-10">
-        {loading ? (
-          <div className="flex flex-col items-center py-24 gap-4">
-            <div className="loader-ring" />
-            <p className="text-[var(--gold)]">جاري تحميل الآيات...</p>
-          </div>
-        ) : ayahs.length === 0 ? (
-          <p className="text-center text-[var(--danger)] py-20">
-            تعذر تحميل الآيات، حاول مرة أخرى
-          </p>
-        ) : (
-          <>
-            {bismillah && (
-              <p className="text-center font-quran text-2xl md:text-3xl text-[var(--gold)] mb-8">
-                بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-              </p>
-            )}
+      {mushafMode && !loading && ayahs.length > 0 ? (
+        <MushafPages surahNumber={surah.number} onToast={onToast} />
+      ) : (
+        <div className="card !rounded-3xl !p-6 md:!p-10">
+          {loading ? (
+            <div className="flex flex-col items-center py-24 gap-4">
+              <div className="loader-ring" />
+              <p className="text-[var(--gold)]">جاري تحميل الآيات...</p>
+            </div>
+          ) : ayahs.length === 0 ? (
+            <p className="text-center text-[var(--danger)] py-20">
+              تعذر تحميل الآيات، حاول مرة أخرى
+            </p>
+          ) : (
+            <>
+              {bismillah && (
+                <p className="text-center font-quran text-2xl md:text-3xl text-[var(--gold)] mb-8">
+                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                </p>
+              )}
 
-            {continuous ? (
-              /* عرض المصحف المتصل */
-              <p className="ayah-text text-justify" dir="rtl" lang="ar">
-                {ayahs.map((ayah, i) => {
-                  const n = Number(ayah.verse_key.split(":")[1]);
-                  return (
-                    <span
-                      key={ayah.verse_key}
-                      id={`ayah-${n}`}
-                      data-ayah={n}
-                      className={`ayah-block inline ${
-                        activeIndex === i ? "active" : ""
-                      }`}
-                    >
+              {continuous ? (
+                /* عرض المصحف المتصل */
+                <p className="ayah-text text-justify" dir="rtl" lang="ar">
+                  {ayahs.map((ayah, i) => {
+                    const n = Number(ayah.verse_key.split(":")[1]);
+                    return (
                       <span
-                        className="ayah-token cursor-pointer rounded-lg px-1"
-                        onClick={(e) => handleTokenClick(e, i)}
+                        key={ayah.verse_key}
+                        id={`ayah-${n}`}
+                        data-ayah={n}
+                        className={`ayah-block inline ${
+                          activeIndex === i ? "active" : ""
+                        }`}
+                      >
+                        <span
+                          className="ayah-token cursor-pointer rounded-lg px-1"
+                          onClick={(e) => handleTokenClick(e, i)}
+                          style={
+                            activeIndex === i
+                              ? { background: "var(--gold-soft)", color: "var(--gold)", ...tokenStyle(i) }
+                              : tokenStyle(i)
+                          }
+                        >
+                          {ayahContent(ayah)}
+                        </span>{" "}
+                      </span>
+                    );
+                  })}
+                </p>
+              ) : (
+                /* آية في سطر */
+                <div className="space-y-4">
+                  {ayahs.map((ayah, i) => {
+                    const n = Number(ayah.verse_key.split(":")[1]);
+                    const marked = isAyahBookmarked(surah.number, n);
+                    return (
+                      <div
+                        key={ayah.verse_key}
+                        id={`ayah-${n}`}
+                        data-ayah={n}
+                        className={`ayah-block rounded-2xl p-4 transition-all ${
+                          activeIndex === i ? "active-ayah" : ""
+                        }`}
                         style={
                           activeIndex === i
-                            ? { background: "var(--gold-soft)", color: "var(--gold)", ...tokenStyle(i) }
-                            : tokenStyle(i)
+                            ? { background: "var(--gold-soft)", border: "1px solid var(--gold)" }
+                            : { border: "1px solid transparent" }
                         }
                       >
-                        {ayah.text_uthmani}
-                        <span className="ayah-seal">{toEasternNumbers(n)}</span>
-                      </span>{" "}
-                    </span>
-                  );
-                })}
-              </p>
-            ) : (
-              /* آية في سطر */
-              <div className="space-y-4">
-                {ayahs.map((ayah, i) => {
-                  const n = Number(ayah.verse_key.split(":")[1]);
-                  const marked = isAyahBookmarked(surah.number, n);
-                  return (
-                    <div
-                      key={ayah.verse_key}
-                      id={`ayah-${n}`}
-                      data-ayah={n}
-                      className={`ayah-block rounded-2xl p-4 transition-all ${
-                        activeIndex === i ? "active-ayah" : ""
-                      }`}
-                      style={
-                        activeIndex === i
-                          ? { background: "var(--gold-soft)", border: "1px solid var(--gold)" }
-                          : { border: "1px solid transparent" }
-                      }
-                    >
-                      <p className="ayah-text">
-                        <span
-                          className="ayah-token"
-                          onClick={(e) => handleTokenClick(e, i)}
-                          style={tokenStyle(i)}
-                        >
-                          {ayah.text_uthmani}
-                        </span>
-                        <span className="ayah-seal">{toEasternNumbers(n)}</span>
-                      </p>
+                        <p className="ayah-text">
+                          <span
+                            className="ayah-token"
+                            onClick={(e) => handleTokenClick(e, i)}
+                            style={tokenStyle(i)}
+                          >
+                            {ayahContent(ayah)}
+                          </span>
+                        </p>
                       {/* الترجمة الإنجليزية تحت الآية */}
                       {settings.showTranslation &&
                         (translations?.[n] ? (
@@ -520,6 +652,26 @@ export default function Reader({
                         >
                           📤 مشاركة
                         </button>
+                        <button
+                          className="btn-ghost !px-3 !py-1 !text-xs"
+                          onClick={async () => {
+                            const r = await shareAyahImage({
+                              surahName: surah.name,
+                              ayahNumber: n,
+                              text: ayah.text_uthmani,
+                            });
+                            onToast(
+                              r === "shared"
+                                ? "🖼 شُاركت صورة الآية ✓"
+                                : r === "downloaded"
+                                ? "🖼 نُزّلت صورة الآية — شاركها من صورك"
+                                : "تعذر توليد الصورة"
+                            );
+                          }}
+                          title="توليد صورة جميلة بالآية ومشاركتها مباشرة"
+                        >
+                          🖼 صورة
+                        </button>
                       </div>
                     </div>
                   );
@@ -528,7 +680,18 @@ export default function Reader({
             )}
           </>
         )}
-      </div>
+        </div>
+      )}
+
+      {/* نافذة اختبار الحفظ */}
+      {quizOpen && (
+        <MemorizeQuizModal surah={surah} ayahs={ayahs} onClose={() => setQuizOpen(false)} />
+      )}
+
+      {/* نافذة التسميع الصوتي */}
+      {reciteOpen && (
+        <VoiceReciteModal surah={surah} ayahs={ayahs} onClose={() => setReciteOpen(false)} />
+      )}
 
       {/* تنبيه الترجمة في عرض المصحف المتصل */}
       {continuous && !loading && ayahs.length > 0 && settings.showTranslation && (
@@ -596,6 +759,25 @@ export default function Reader({
             }}
           >
             📤 مشاركة
+          </button>
+          <button
+            onClick={async () => {
+              const r = await shareAyahImage({
+                surahName: surah.name,
+                ayahNumber: menuAyahNumber,
+                text: currentMenuAyah.text_uthmani,
+              });
+              onToast(
+                r === "shared"
+                  ? "🖼 شُاركت صورة الآية ✓"
+                  : r === "downloaded"
+                  ? "🖼 نُزّلت صورة الآية — شاركها من صورك"
+                  : "تعذر توليد الصورة"
+              );
+              setMenu(null);
+            }}
+          >
+            🖼 مشاركة كصورة
           </button>
         </div>
       )}
