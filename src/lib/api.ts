@@ -378,6 +378,92 @@ export async function fetchSurahPages(
   return pages;
 }
 
+// ==================== توقيتات الكلمات للمزامنة (من quran.com) ====================
+// كل آية: segments[ [wordIdx, wordType, fromMs, toMs], ... ] نسبية لتسجيل الآية
+// نحسب منها: مدة كل آية → مواعيد آيات سورتها داخل ملف الصوت الكامل (بالتحجيم)
+const WORD_TIMINGS_KEY = "quranWordTimings_v1";
+type WordTimingsCache = Record<string, { ayahDurationsMs: number[]; wordStarts: number[][][] }>;
+
+export interface SurahTimings {
+  ayahCount: number;
+  ayahDurationsMs: number[]; // مدة كل آية
+  wordStarts: number[][][]; // [ayah][word] = startMs داخل الآية
+}
+
+export async function fetchSurahTimings(surahNumber: number): Promise<SurahTimings | null> {
+  const cache = readCache<WordTimingsCache>(WORD_TIMINGS_KEY);
+  const cached = cache[surahNumber];
+  if (cached) return { ayahCount: cached.ayahDurationsMs.length, ...cached };
+
+  try {
+    const res = await fetch(
+      `https://api.quran.com/api/v4/recitations/7/by_chapter/${surahNumber}?per_page=300`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const verses = data.verses || [];
+    if (!verses.length) return null;
+    const audioFiles = verses[0].audio_files || [];
+    const ayahDurationsMs: number[] = [];
+    const wordStarts: number[][][] = [];
+    for (const f of audioFiles) {
+      const segs: number[][] = f.segments || [];
+      let dur = 0;
+      const starts: number[][] = [];
+      for (const s of segs) {
+        // s = [wordIdx, wordType, fromMs, toMs]
+        const from = s[2] || 0;
+        const to = s[3] || 0;
+        dur = Math.max(dur, to);
+        const wi = s[0];
+        while (starts.length <= wi) starts.push([]);
+        starts[wi].push(from);
+      }
+      ayahDurationsMs.push(dur);
+      wordStarts.push(starts);
+    }
+    const entry = { ayahDurationsMs, wordStarts };
+    cache[surahNumber] = entry;
+    writeCache(WORD_TIMINGS_KEY, cache);
+    return { ayahCount: ayahDurationsMs.length, ...entry };
+  } catch {
+    return null;
+  }
+}
+
+// ==================== حساب أوقات الآيات داخل ملف الصوت الكامل ====================
+// تحجيم المدد النسبية على المدة الفعلية للملف — أدق بكثير من القسمة المتساوية
+export function computeAyahStarts(
+  ayahDurationsMs: number[],
+  actualDurationSec: number
+): number[] {
+  const totalRel = ayahDurationsMs.reduce((a, b) => a + b, 0);
+  if (!totalRel || !actualDurationSec) return [];
+  const scale = (actualDurationSec * 1000) / totalRel;
+  let t = 0;
+  return ayahDurationsMs.map((d) => {
+    const start = t;
+    t += d * scale;
+    return start / 1000; // ثوانٍ
+  });
+}
+
+// فهرس الكلمة النشطة داخل آية في زمن معيّن (ثوانٍ من بداية الآية)
+export function wordIndexAt(
+  wordStartsAyah: number[][],
+  scale: number,
+  secondsIntoAyah: number
+): number {
+  if (!wordStartsAyah?.length) return -1;
+  const ms = secondsIntoAyah * 1000 / scale;
+  let idx = -1;
+  for (let i = 0; i < wordStartsAyah.length; i++) {
+    const st = wordStartsAyah[i]?.[0];
+    if (st !== undefined && st <= ms) idx = i;
+    else if (st !== undefined && st > ms) break;
+  }
+  return idx;
+}
 // ==================== تفسير الميسّر لسورة كاملة (طلب واحد — للأوفلاين) ====================
 // يخزّن كل آية في كاش التفسير نفسه الذي تقرأ منه نافذة التفسير
 export async function fetchSurahMuyassar(surahNumber: number): Promise<number> {

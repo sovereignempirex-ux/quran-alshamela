@@ -6,6 +6,7 @@ import { reciters, getReciter } from "@/lib/reciters";
 import { formatTime, pad3 } from "@/lib/utils";
 import { surahData } from "@/lib/surahData";
 import { getOfflineAudio } from "@/lib/audioStore";
+import { fetchSurahTimings, computeAyahStarts } from "@/lib/api";
 
 interface AudioBarProps {
   show: boolean;
@@ -17,6 +18,8 @@ interface AudioBarProps {
   volume: number;
   autoNext: boolean;
   repeatAyah: boolean;
+  serialRepeat: number; // 0=بدون، 2/3=عدد مرات إعادة الآية قبل التالية (حفظ)
+  pauseOnBlur: boolean; // إيقاف التلاوة تلقائياً عند مغادرة التطبيق
   offlineTick: number; // يتغير عند تنزيل/حذف تلاوة — لإعادة فحص المصدر المحلي
   currentTime: number;
   duration: number;
@@ -42,6 +45,8 @@ export default function AudioBar({
   volume,
   autoNext,
   repeatAyah,
+  serialRepeat,
+  pauseOnBlur,
   offlineTick,
   currentTime,
   duration,
@@ -59,6 +64,11 @@ export default function AudioBar({
   const srcRef = useRef("");
   const [error, setError] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+
+  // == التلاوة المتسلسلة: إعادة الآية N مرات ثم الانتقال للتالية (للحفظ) ==
+  const [ayahStarts, setAyahStarts] = useState<number[]>([]);
+  const [repeatLeft, setRepeatLeft] = useState(0);
+  const curAyahRef = useRef(-1);
 
   // == مؤقت النوم: يوقف التلاوة بعد المدة المحددة ==
   const SLEEP_OPTIONS = [0, 10, 20, 30, 60] as const; // بالدقائق، 0 = بدون
@@ -106,6 +116,70 @@ export default function AudioBar({
     const ss = sleepLeft % 60;
     return `🌙 ${mm}:${String(ss).padStart(2, "0")}`;
   };
+
+  // جلب توقيتات الآيات الحقيقية (مستمدة من تسجيل مرجعي ومحجّمة على مدة الملف)
+  useEffect(() => {
+    let alive = true;
+    setAyahStarts([]);
+    if (!surahNumber) return;
+    fetchSurahTimings(surahNumber)
+      .then((t) => {
+        if (alive && t && duration > 0) {
+          setAyahStarts(computeAyahStarts(t.ayahDurationsMs, duration));
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [surahNumber, duration > 0]);
+
+  // == مراقبة عبور حدود الآيات: التنفيذ المتسلسل (إعادة N مرات) ==
+  useEffect(() => {
+    if (!ayahStarts.length) {
+      curAyahRef.current = -1;
+      return;
+    }
+    // الآية الحالية بالزمن
+    let idx = 0;
+    for (let i = ayahStarts.length - 1; i >= 0; i--) {
+      if (currentTime >= ayahStarts[i] - 0.15) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx !== curAyahRef.current) {
+      const prev = curAyahRef.current;
+      curAyahRef.current = idx;
+      // إن كانت الإعداد متسلسلاً وعبورنا إلى الآية التالية أثناء التشغيل
+      if (serialRepeat > 0 && playing && prev !== -1 && idx === prev + 1 && repeatLeft > 0) {
+        const audio = audioRef.current;
+        if (audio) {
+          audio.currentTime = ayahStarts[prev];
+          audio.play().catch(() => undefined);
+          setRepeatLeft((r) => r - 1);
+        }
+      } else if (serialRepeat > 0 && playing && prev !== -1 && idx !== prev) {
+        setRepeatLeft(serialRepeat - 1); // آية جديدة: تنقيص من العدد الكامل
+      }
+    }
+  }, [currentTime, ayahStarts, serialRepeat, playing]);
+
+  // == إيقاف ذكي: عند مغادرة التطبيق (تبديل التبويب/التطبيق) يتوقف الصوت ==
+  useEffect(() => {
+    if (!pauseOnBlur) return;
+    const onVis = () => {
+      if (document.hidden) {
+        const audio = audioRef.current;
+        if (audio && !audio.paused) {
+          audio.pause();
+          onToast("⏸ أُوقفت التلاوة لأنك غادرت التطبيق");
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [pauseOnBlur, onToast]);
 
   // تجهيز المصدر عند تغير السورة أو القارئ — الأوفلاين أولاً:
   // إن كانت التلاوة محفوظة على الجهاز نشغّلها من IndexedDB دون أي إنترنت
@@ -287,6 +361,26 @@ export default function AudioBar({
               title="إعادة نفس السورة عند نهايتها"
             >
               {repeatAyah ? "🔂 التكرار: مفعّل" : "🔂 التكرار: معطل"}
+            </button>
+
+            {/* التلاوة المتسلسلة: إعادة الآية N مرات ثم التالية */}
+            <button
+              className={`!py-1.5 !px-3 text-xs ${serialRepeat > 0 ? "btn" : "btn-ghost"}`}
+              onClick={() => {
+                const order = [0, 2, 3] as const;
+                const next = order[(order.indexOf((serialRepeat as 0 | 2 | 3) || 0) + 1) % order.length];
+                onSettings((p) => ({ ...p, serialRepeat: next }));
+                setRepeatLeft(0);
+                curAyahRef.current = -1;
+                onToast(
+                  next === 0
+                    ? "🔁 التلاوة المتسلسلة: معطلة"
+                    : `🔁 حفظ متسلسل: تُعاد كل آية ${next} مرات ثم التالية`
+                );
+              }}
+              title="للحفظ: تُعاد كل آية مرتين أو ثلاثاً قبل الانتقال للآية التالية"
+            >
+              {serialRepeat > 0 ? `🔁 آية×${serialRepeat}: يعمل` : "🔁 حفظ متسلسل"}
             </button>
 
             {/* مؤقت النوم + شاشة النوم */}

@@ -11,6 +11,8 @@ import {
   type ReciteGrade,
 } from "@/lib/speech";
 import { toEasternNumbers } from "@/lib/utils";
+import { normalizeWords } from "@/lib/speech";
+import { recordAyahResult, recordWrongWords } from "@/lib/review";
 
 // ============================================================
 // التسميع الصوتي — اسجّل حفظك بالمايك ويقيّمك التطبيق كلمة كلمة
@@ -103,6 +105,22 @@ export default function VoiceReciteModal({ surah, ayahs, onClose }: VoiceReciteP
       const g = gradeRecitation(text, expectedText);
       setGrade(g);
       setPhase("result");
+      // تسجيل النتائج: نتيجة لكل آية ضمن النطاق + الكلمات الخاطئة للنظام
+      const a = Math.max(1, Math.min(from, ayahs.length));
+      const b = Math.max(a, Math.min(to, ayahs.length));
+      const ayahTexts = ayahs.slice(a - 1, b);
+      const nEach = Math.floor(g.expected.length / Math.max(1, ayahTexts.length));
+      ayahTexts.forEach((_, i) => {
+        // نقاط تقديرية لكل آية: نسبة الكلمات المتطابقة ضمن نطاقها
+        const sliceStart = i * nEach;
+        const sliceEnd = i === ayahTexts.length - 1 ? g.expected.length : (i + 1) * nEach;
+        let ok = 0;
+        for (let k = sliceStart; k < sliceEnd; k++) if (g.expected[k]?.status === "ok") ok++;
+        const ayahScore = Math.round((ok / Math.max(1, sliceEnd - sliceStart)) * 100);
+        recordAyahResult(`${surah.number}:${a + i}`, ayahScore, []);
+      });
+      // الكلمات المتروكة/الخاطئة → تسجيلها كأخطاء متكررة
+      recordWrongWords(normalizeWords(g.extras.join(" ")), `${surah.number}:${a}`);
     } catch (e) {
       setError(
         e instanceof Error && /network|fetch|download/i.test(e.message)

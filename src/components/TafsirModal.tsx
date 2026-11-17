@@ -6,6 +6,7 @@ import { fetchTafsir } from "@/lib/api";
 import { tafsirSources } from "@/lib/tafsirSources";
 import { toEasternNumbers } from "@/lib/utils";
 import { getSurahByNumber } from "@/lib/surahData";
+import { logTafsirView } from "@/components/NotebookModal";
 
 interface TafsirModalProps {
   surah: number;
@@ -24,6 +25,8 @@ export default function TafsirModal({
   const [data, setData] = useState<TafsirItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaved, setNoteSaved] = useState(false);
 
   const meta = getSurahByNumber(surah);
   const maxAyah = meta?.verses || 1;
@@ -33,6 +36,8 @@ export default function TafsirModal({
     setLoading(true);
     setError(null);
     setData(null);
+    setNoteSaved(false);
+    setNoteDraft("");
     (async () => {
       try {
         const json = await fetchTafsir(surah, ayah, source);
@@ -46,6 +51,7 @@ export default function TafsirModal({
       } finally {
         if (alive) setLoading(false);
       }
+      if (alive) logTafsirView(surah, ayah, tafsirSources.find((t) => t.edition === source)?.name || source);
     })();
     return () => {
       alive = false;
@@ -108,6 +114,47 @@ export default function TafsirModal({
                 سورة {data.surahName} · {data.tafsirName}
               </p>
               <p className="tafsir-body">{data.text}</p>
+
+              {/* ملاحظة شخصية تُخزَّن في دفتري */}
+              <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                {noteSaved ? (
+                  <p className="text-xs text-[var(--gold)]">✓ حُفظت الملاحظة في دفترك 📓</p>
+                ) : (
+                  <>
+                    <details>
+                      <summary className="text-xs text-[var(--gold)] cursor-pointer mb-2">
+                        📌 أضف ملاحظة على هذه الآية
+                      </summary>
+                      <textarea
+                        className="input w-full text-sm !py-2"
+                        rows={2}
+                        dir="rtl"
+                        placeholder="ملاحظتك، فائدة تعلمتها، أو فهمك الخاص..."
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                      />
+                      <button
+                        className="btn !py-1.5 text-xs mt-2"
+                        disabled={!noteDraft.trim()}
+                        onClick={() => {
+                          try {
+                            const raw = localStorage.getItem("quranStudyNotes");
+                            const notes = raw ? JSON.parse(raw) : [];
+                            notes.unshift({ surah, ayah, text: noteDraft.trim(), t: Date.now() });
+                            localStorage.setItem("quranStudyNotes", JSON.stringify(notes));
+                            setNoteSaved(true);
+                            setNoteDraft("");
+                          } catch {
+                            /* تجاهل */
+                          }
+                        }}
+                      >
+                        حفظ في دفتري
+                      </button>
+                    </details>
+                  </>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

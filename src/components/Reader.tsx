@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useRef, useState, useMemo, type CSSProperties, type MouseEvent } from "react";
 import type {
   AppSettings,
   Ayah,
@@ -11,7 +11,7 @@ import type {
   SurahMeta,
 } from "@/lib/types";
 import { toEasternNumbers, formatTime } from "@/lib/utils";
-import { fetchTranslation, fetchTajweedVerses } from "@/lib/api";
+import { fetchTranslation, fetchTajweedVerses, fetchSurahTimings } from "@/lib/api";
 import { getReciter } from "@/lib/reciters";
 import { downloadSurahPackage, getOfflineAudio } from "@/lib/audioStore";
 import { shareAyahImage, type AyahBg } from "@/lib/ayahImage";
@@ -19,6 +19,8 @@ import { fetchTafsir } from "@/lib/api";
 import MushafPages from "@/components/MushafPages";
 import MemorizeQuizModal from "@/components/MemorizeQuizModal";
 import VoiceReciteModal from "@/components/VoiceReciteModal";
+import NotebookModal from "@/components/NotebookModal";
+import WordOrderGame from "@/components/WordOrderGame";
 
 interface ReaderProps {
   surah: SurahMeta | null;
@@ -44,6 +46,7 @@ interface ReaderProps {
   isCompleted: (n: number) => boolean;
   onToggleCompleted: (n: number) => void;
   onSurahNav: (dir: -1 | 1) => void;
+  onOpenSurahTo: (surah: number, ayah?: number) => void; // فتح آية محددة (من دفتري)
   onRecordVerse: () => void; // تسجيل آية مقروءة في إحصاءات اليوم
 }
 
@@ -71,6 +74,7 @@ export default function Reader({
   isCompleted,
   onToggleCompleted,
   onSurahNav,
+  onOpenSurahTo,
   onRecordVerse,
 }: ReaderProps) {
   const [menu, setMenu] = useState<{
@@ -114,6 +118,8 @@ export default function Reader({
   const [tajweed, setTajweed] = useState<Record<number, string> | null>(null);
   const [quizOpen, setQuizOpen] = useState(false);
   const [reciteOpen, setReciteOpen] = useState(false);
+  const [gameOpen, setGameOpen] = useState(false);
+  const [notebookOpen, setNotebookOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSurahOffline, setIsSurahOffline] = useState(false);
   useEffect(() => {
@@ -145,6 +151,25 @@ export default function Reader({
       alive = false;
     };
   }, [surah, settings.reciter, saving]);
+
+  // == الإبراز كلمة-كلمة مع التلاوة ==
+  // توقيتات الكلمات من تسجيل مرجعي، محجّمة على المدة الفعلية
+  const [timings, setTimings] = useState<{
+    ayahDurationsMs: number[];
+    wordStarts: number[][][];
+  } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!surah) return;
+    fetchSurahTimings(surah.number)
+      .then((t) => {
+        if (alive && t) setTimings({ ayahDurationsMs: t.ayahDurationsMs, wordStarts: t.wordStarts });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [surah]);
 
   // حفظ السورة كاملة (نص + تلاوة + تفسير الميسّر + ترجمة) — بزر واحد
   const saveSurahPackage = async () => {
@@ -224,14 +249,57 @@ export default function Reader({
 
   const isFav = favorites.some((f) => f.number === surah.number);
 
-  // الآية النشطة أثناء التلاوة (تقدير نسبي)
+  // الآية النشطة أثناء التلاوة — توقيتات حقيقية عند توفرها، وإلا تقدير نسبي
+  const ayahStartsMemo = useMemo(() => {
+    if (!surah || ayahs.length === 0) return [];
+    if (playing && duration > 0 && timings && timings.ayahDurationsMs.length === ayahs.length) {
+      const totalRel = timings.ayahDurationsMs.reduce((a, b) => a + b, 0);
+      if (totalRel) {
+        const scale = (duration * 1000) / totalRel;
+        let t = 0;
+        return timings.ayahDurationsMs.map((d) => {
+          const s = t;
+          t += d * scale;
+          return s / 1000;
+        });
+      }
+    }
+    // تقدير نسبي (احتياطي)
+    if (!playing || duration <= 0) return [];
+    return ayahs.map((_, i) => (duration * i) / ayahs.length);
+  }, [surah, ayahs, playing, duration, timings]);
+
   const activeIndex =
-    playing && duration > 0
-      ? Math.min(
-          Math.floor((currentTime / duration) * ayahs.length),
-          ayahs.length - 1
+    playing && duration > 0 && ayahStartsMemo.length
+      ? Math.max(
+          0,
+          Math.min(
+            ayahStartsMemo.reduce((acc, s, i) => (currentTime >= s - 0.15 ? i : acc), 0),
+            ayahs.length - 1
+          )
         )
       : -1;
+
+  // فهرس الكلمة النشطة داخل الآية النشطة (الإبراز كلمة-كلمة)
+  const activeWord = useMemo(() => {
+    if (activeIndex < 0 || !timings || !ayahStartsMemo.length) return -1;
+    const starts = timings.wordStarts[activeIndex];
+    if (!starts?.length) return -1;
+    const scale =
+      timings.ayahDurationsMs.reduce((a, b) => a + b, 0) > 0
+        ? (duration * 1000) /
+          timings.ayahDurationsMs.reduce((a, b) => a + b, 0)
+        : 1;
+    const intoAyah = currentTime - ayahStartsMemo[activeIndex];
+    const ms = intoAyah * 1000;
+    let idx = -1;
+    for (let i = 0; i < starts.length; i++) {
+      const st = starts[i]?.[0];
+      if (st !== undefined && st <= ms) idx = i;
+      else if (st !== undefined && st > ms) break;
+    }
+    return idx;
+  }, [activeIndex, timings, ayahStartsMemo, currentTime, duration]);
 
   // انزلاق إلى آية محددة عند الفتح
   useEffect(() => {
@@ -334,8 +402,26 @@ export default function Reader({
   const mushafMode = settings.displayMode === "mushaf";
 
   // محتوى نص الآية — بالتجويد الملوّن إن فعّل المستخدم ذلك
-  const ayahContent = (ayah: Ayah) => {
+  // عند التلاوة النشطة: إبراز كلمة-كلمة (يُعطّل تلقائياً مع التجويد لسلامة الوسوم)
+  const ayahContent = (ayah: Ayah, ayahIndex: number = -1) => {
     const n = Number(ayah.verse_key.split(":")[1]);
+    const seal = <span className="ayah-seal">{toEasternNumbers(n)}</span>;
+
+    // إبراز الكلمة النشطة
+    if (ayahIndex === activeIndex && activeWord >= 0 && !settings.showTajweed) {
+      const words = ayah.text_uthmani.replace(/[\u06DD\u066D\u0660-\u0669]/g, "").trim().split(/\s+/);
+      return (
+        <>
+          {words.map((w, wi) => (
+            <span key={wi} className={wi === activeWord ? "word-active" : undefined}>
+              {w}{" "}
+            </span>
+          ))}
+          {seal}
+        </>
+      );
+    }
+
     if (settings.showTajweed && tajweed?.[n]) {
       return (
         <span
@@ -345,7 +431,7 @@ export default function Reader({
         />
       );
     }
-    return <>{ayah.text_uthmani}<span className="ayah-seal">{toEasternNumbers(n)}</span></>;
+    return <>{ayah.text_uthmani}{seal}</>;
   };
 
   const currentMenuAyah = menu ? ayahs[menu.ayahIndex] : null;
@@ -436,6 +522,24 @@ export default function Reader({
             onClick={() => setReciteOpen(true)}
           >
             🎤 تسميع صوتي
+          </button>
+
+          {/* لعبة تركيب الكلمات */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="لعبة: اضغط كلمتين لتبديلهما حتى تستقيم الآية"
+            onClick={() => setGameOpen(true)}
+          >
+            🧩 لعبة
+          </button>
+
+          {/* دفتري: ملاحظاتي + سجل التفاسير + مراجعة اليوم + درجات */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="دفترك الدراسي: ملاحظات، سجل التفسيرات، كلماتك الخاطئة، مراجعة اليوم، درجات الحفظ"
+            onClick={() => setNotebookOpen(true)}
+          >
+            📓 دفتري
           </button>
 
           {/* حفظ السورة كاملة بدون نت (نص + تلاوة + تفسير + ترجمة) */}
@@ -578,7 +682,7 @@ export default function Reader({
                               : tokenStyle(i)
                           }
                         >
-                          {ayahContent(ayah)}
+                          {ayahContent(ayah, i)}
                         </span>{" "}
                       </span>
                     );
@@ -610,7 +714,7 @@ export default function Reader({
                             onClick={(e) => handleTokenClick(e, i)}
                             style={tokenStyle(i)}
                           >
-                            {ayahContent(ayah)}
+                            {ayahContent(ayah, i)}
                           </span>
                         </p>
                       {/* الترجمة الإنجليزية تحت الآية */}
@@ -717,6 +821,25 @@ export default function Reader({
       {/* نافذة التسميع الصوتي */}
       {reciteOpen && (
         <VoiceReciteModal surah={surah} ayahs={ayahs} onClose={() => setReciteOpen(false)} />
+      )}
+
+      {/* لعبة تركيب الكلمات */}
+      {gameOpen && (
+        <WordOrderGame
+          surah={surah}
+          ayahs={ayahs}
+          onClose={() => setGameOpen(false)}
+          onToast={onToast}
+        />
+      )}
+
+      {/* دفتري */}
+      {notebookOpen && (
+        <NotebookModal
+          onClose={() => setNotebookOpen(false)}
+          onOpenSurah={(s, a) => onOpenSurahTo(s, a)}
+          onToast={onToast}
+        />
       )}
 
       {/* تنبيه الترجمة في عرض المصحف المتصل */}

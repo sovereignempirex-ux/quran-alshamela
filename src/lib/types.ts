@@ -69,6 +69,8 @@ export interface AppSettings {
   showTajweed: boolean; // تلوين أحكام التجويد (مد/غنّة/قلقلة/إخفاء...)
   keepAwake: boolean; // مضاد للسكون: يمنع إطفاء الشاشة أثناء الاستخدام
   comfort: boolean; // وضع الراحة: ألوان دافئة ومسافات أوسع لراحة العين
+  serialRepeat: number; // 0=بدون · 2/3: تُعاد كل آية N مرات قبل التالية (حفظ)
+  pauseOnBlur: boolean; // إيقاف التلاوة عند مغادرة التطبيق
   palette: Palette; // الثيم اللوني الجاهز
   autoWarm: boolean; // سطوع تلقائي: يفعّل الإضاءة الدافئة تلقائياً بعد المغرب
   clickSound: boolean; // صوت نقرة خفيف عند الضغط على الأزرار

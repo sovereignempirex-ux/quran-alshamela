@@ -337,6 +337,15 @@ body::before {
   50% { box-shadow: 0 0 0 14px rgba(229, 72, 77, 0); }
 }
 
+/* الإبراز كلمة-كلمة مع التلاوة */
+.word-active {
+  color: var(--gold);
+  background: var(--gold-soft);
+  border-radius: 6px;
+  padding: 0 2px;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.25);
+}
+
 .ayah-block.active {
   background: var(--gold-soft);
   color: var(--gold);

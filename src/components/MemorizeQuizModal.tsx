@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Ayah, SurahMeta } from "@/lib/types";
 import { toEasternNumbers } from "@/lib/utils";
+import { recordAyahResult } from "@/lib/review";
 
 // ============================================================
 // اختبار الحفظ (تسميع تفاعلي):
@@ -54,9 +55,16 @@ export default function MemorizeQuizModal({ surah, ayahs, onClose }: MemorizeQui
   const totalHidden = Math.max(0, words.length - 1); // الأولى مكشوفة دائماً
   const done = state.revealed >= totalHidden;
 
-  // إظهار الآية بالتقييم عند اكتمال الكشف
+  // إظهار الآية بالتقييم عند اكتمال الكشف + تسجيل النتيجة في نظام المراجعة
   useEffect(() => {
-    if (done && !graded) setGraded(true);
+    if (done && !graded) {
+      setGraded(true);
+      const verseKey = `${surah.number}:${ayahNumber}`;
+      const score = Math.round(
+        (1 - state.revealed / Math.max(1, totalHidden)) * 100
+      );
+      recordAyahResult(verseKey, score);
+    }
   }, [done, graded]);
 
   const nextAyah = () => {

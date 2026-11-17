@@ -458,6 +458,13 @@ function SettingsPanelInner({
         />
       </Row>
 
+      <Row label="⏸ إيقاف التلاوة عند مغادرة التطبيق">
+        <Toggle
+          on={settings.pauseOnBlur}
+          onToggle={() => onSettings((p) => ({ ...p, pauseOnBlur: !p.pauseOnBlur }))}
+        />
+      </Row>
+
       <Row label="ترجمة إنجليزية تحت الآية">
         <button
           onClick={() => onSettings((p) => ({ ...p, showTranslation: !p.showTranslation }))}

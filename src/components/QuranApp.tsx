@@ -48,6 +48,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showTajweed: false,
   keepAwake: true,
   comfort: false,
+  serialRepeat: 0,
+  pauseOnBlur: false,
   palette: "gold",
   autoWarm: true,
   clickSound: false,
@@ -462,6 +464,7 @@ export default function QuranApp() {
                   if (next < 1) next = 114;
                   openSurah(next);
                 }}
+                onOpenSurahTo={(s, a) => openSurah(s, a)}
                 onRecordVerse={recordVerse}
               />
             )}
@@ -531,6 +534,8 @@ export default function QuranApp() {
               volume={settingsLS.value.volume}
               autoNext={settingsLS.value.autoNext}
               repeatAyah={settingsLS.value.repeatAyah}
+              serialRepeat={settings.serialRepeat}
+              pauseOnBlur={settings.pauseOnBlur}
               offlineTick={offlineTick}
               currentTime={currentTime}
               duration={duration}
