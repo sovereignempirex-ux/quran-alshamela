@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SearchResult } from "@/lib/types";
 import { searchQuranApi } from "@/lib/api";
+import { expandQuery } from "@/lib/concepts";
 import { surahData } from "@/lib/surahData";
 import { toEasternNumbers } from "@/lib/utils";
 
@@ -19,6 +20,9 @@ export default function SearchSection({ onOpenSurah }: SearchSectionProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState<string>("");
+  // البحث الدلالي: توسعة محلية بمترادفات المفاهيم
+  const [semantic, setSemantic] = useState<{ label: string; terms: string[]; count: number } | null>(null);
+  const [semanticKeys, setSemanticKeys] = useState<Set<string>>(new Set());
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // بحث فوري مع مهلة
@@ -34,25 +38,52 @@ export default function SearchSection({ onOpenSurah }: SearchSectionProps) {
       setResults([]);
       setTotal(0);
       setSearched("");
+      setSemantic(null);
+      setSemanticKeys(new Set());
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await searchQuranApi(q, p);
-      // اربط نتيجتنا بأسماء السور المحلية
-      const mapped = data.results.map((r) => {
-        const meta = surahData.find((s) => s.number === r.surahNumber);
-        return meta ? { ...r, surahName: meta.name } : r;
-      });
-      setResults(mapped);
-      setTotal(data.total || 0);
-      setPage(data.page || p);
-      setTotalPages(data.totalPages || 1);
+      // الاستعلام الأساسي + توسعة دلالية محلية (مترادفات المفاهيم)
+      const { terms, group } = expandQuery(q);
+      const [main, ...extras] = await Promise.all([
+        searchQuranApi(q, p),
+        ...terms.slice(0, 3).map((t) => searchQuranApi(t, 1, 8).catch(() => null)),
+      ]);
+      const map = (rs: SearchResult[]) =>
+        rs.map((r) => {
+          const meta = surahData.find((s) => s.number === r.surahNumber);
+          return meta ? { ...r, surahName: meta.name } : r;
+        });
+      const merged = map(main.results);
+      const seen = new Set(merged.map((r) => r.verse_key));
+      const semKeys = new Set<string>();
+      for (const ex of extras) {
+        if (!ex) continue;
+        for (const r of map(ex.results)) {
+          if (!seen.has(r.verse_key)) {
+            seen.add(r.verse_key);
+            merged.push(r);
+            semKeys.add(r.verse_key);
+          }
+        }
+      }
+      setResults(merged);
+      setSemanticKeys(semKeys);
+      setSemantic(
+        group && semKeys.size > 0
+          ? { label: group.label, terms: terms.slice(0, 3), count: semKeys.size }
+          : null
+      );
+      setTotal(main.total || 0);
+      setPage(main.page || p);
+      setTotalPages(main.totalPages || 1);
       setSearched(q);
     } catch (e) {
       setError(e instanceof Error ? e.message : "خطأ في البحث");
       setResults([]);
+      setSemantic(null);
     } finally {
       setLoading(false);
     }
@@ -108,11 +139,27 @@ export default function SearchSection({ onOpenSurah }: SearchSectionProps) {
         )}
 
         {!loading && !error && searched && (
-          <p className="text-center text-sm text-[var(--muted)] mb-5">
+          <p className="text-center text-sm text-[var(--muted)] mb-3">
             {total > 0
               ? `وُجد ${toEasternNumbers(total)} نتيجة للبحث عن «${searched}»`
               : `لا توجد نتائج للبحث عن «${searched}»`}
           </p>
+        )}
+
+        {/* توسعة دلالية: نتائج إضافية من مترادفات المعنى */}
+        {!loading && semantic && (
+          <div
+            className="rounded-2xl px-4 py-3 mb-5 border border-[var(--border)] text-center"
+            style={{ background: "var(--panel)" }}
+          >
+            <p className="text-xs text-[var(--gold)] mb-2">
+              🔎 بحث بالمعنى — مجموعة «{semantic.label}»: بحثنا أيضاً عن{" "}
+              {semantic.terms.map((t) => `«${t}»`).join("، ")}
+            </p>
+            <p className="text-[11px] text-[var(--muted)]">
+              + {toEasternNumbers(semantic.count)} نتيجة إضافية مرتبطة بالمعنى نفسه
+            </p>
+          </div>
         )}
 
         <div className="space-y-4">
@@ -125,6 +172,11 @@ export default function SearchSection({ onOpenSurah }: SearchSectionProps) {
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <span className="text-xs font-bold text-[var(--gold)]">
                   سورة {r.surahName}
+                  {semanticKeys.has(r.verse_key) && (
+                    <span className="text-[10px] font-normal mr-2 px-2 py-0.5 rounded-full border border-[var(--gold)] text-[var(--gold)]">
+                      🔎 بالمعنى
+                    </span>
+                  )}
                 </span>
                 <span className="text-[11px] text-[var(--muted)]">{r.verse_key}</span>
               </div>

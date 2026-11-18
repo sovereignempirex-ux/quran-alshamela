@@ -346,6 +346,22 @@ body::before {
   box-shadow: 0 0 10px rgba(255, 215, 0, 0.25);
 }
 
+/* إبراز اختلافات المقارنة بين الروايتين */
+.diff-a {
+  background: rgba(229, 72, 77, 0.18);
+  color: var(--danger);
+  border-radius: 6px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+.diff-b {
+  background: rgba(52, 152, 219, 0.18);
+  color: #3498db;
+  border-radius: 6px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+
 .ayah-block.active {
   background: var(--gold-soft);
   color: var(--gold);

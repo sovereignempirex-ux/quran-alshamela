@@ -21,6 +21,8 @@ import MemorizeQuizModal from "@/components/MemorizeQuizModal";
 import VoiceReciteModal from "@/components/VoiceReciteModal";
 import NotebookModal from "@/components/NotebookModal";
 import WordOrderGame from "@/components/WordOrderGame";
+import CompareVersesModal from "@/components/CompareVersesModal";
+import WordDictionaryModal from "@/components/WordDictionaryModal";
 
 interface ReaderProps {
   surah: SurahMeta | null;
@@ -120,6 +122,9 @@ export default function Reader({
   const [reciteOpen, setReciteOpen] = useState(false);
   const [gameOpen, setGameOpen] = useState(false);
   const [notebookOpen, setNotebookOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [dictOpen, setDictOpen] = useState(false);
+  const [dictWord, setDictWord] = useState("");
   const [saving, setSaving] = useState(false);
   const [isSurahOffline, setIsSurahOffline] = useState(false);
   useEffect(() => {
@@ -346,6 +351,17 @@ export default function Reader({
     setMenu({ ayahIndex: i, x: r.left + r.width / 2, y: r.bottom + 8 });
   };
 
+  // نقر مزدوج على كلمة → قاموس جذرها ومعناها
+  const handleAyahDblClick = (e: MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    const sel = window.getSelection()?.toString().trim() || "";
+    const first = sel.split(/\s+/)[0] || "";
+    if (/[\u0600-\u06FF]/.test(first)) {
+      setDictWord(first);
+      setDictOpen(true);
+    }
+  };
+
   // إغلاق قائمة السياق عند النقر خارجها
   useEffect(() => {
     if (!menu) return;
@@ -542,6 +558,27 @@ export default function Reader({
             📓 دفتري
           </button>
 
+          {/* مقارنة روايتين جنباً إلى جنب */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="قارن نسختين من نص القرآن كلمة-كلمة مع إبراز الاختلافات"
+            onClick={() => setCompareOpen(true)}
+          >
+            ⚖️ مقارنة
+          </button>
+
+          {/* قاموس الجذور */}
+          <button
+            className="btn-ghost !py-1.5 text-xs"
+            title="جذر الكلمة ومعناها — أو اضغط نقرة مزدوجة على أي كلمة في النص"
+            onClick={() => {
+              setDictWord("");
+              setDictOpen(true);
+            }}
+          >
+            📖 جذور
+          </button>
+
           {/* حفظ السورة كاملة بدون نت (نص + تلاوة + تفسير + ترجمة) */}
           <button
             className={`!py-1.5 text-xs ${isSurahOffline ? "btn" : "btn-ghost"}`}
@@ -676,6 +713,7 @@ export default function Reader({
                         <span
                           className="ayah-token cursor-pointer rounded-lg px-1"
                           onClick={(e) => handleTokenClick(e, i)}
+                          onDoubleClick={handleAyahDblClick}
                           style={
                             activeIndex === i
                               ? { background: "var(--gold-soft)", color: "var(--gold)", ...tokenStyle(i) }
@@ -712,6 +750,7 @@ export default function Reader({
                           <span
                             className="ayah-token"
                             onClick={(e) => handleTokenClick(e, i)}
+                            onDoubleClick={handleAyahDblClick}
                             style={tokenStyle(i)}
                           >
                             {ayahContent(ayah, i)}
@@ -840,6 +879,20 @@ export default function Reader({
           onOpenSurah={(s, a) => onOpenSurahTo(s, a)}
           onToast={onToast}
         />
+      )}
+
+      {/* مقارنة روايتين جنباً إلى جنب */}
+      {compareOpen && surah && (
+        <CompareVersesModal
+          initialSurah={surah.number}
+          onClose={() => setCompareOpen(false)}
+          onOpenSurah={(s, a) => onOpenSurahTo(s, a)}
+        />
+      )}
+
+      {/* قاموس جذور الكلمات */}
+      {dictOpen && (
+        <WordDictionaryModal initialWord={dictWord} onClose={() => setDictOpen(false)} />
       )}
 
       {/* تنبيه الترجمة في عرض المصحف المتصل */}
